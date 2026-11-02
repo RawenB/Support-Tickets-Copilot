@@ -50,7 +50,6 @@ def build_model() -> Pipeline:
                 LogisticRegression(
                     max_iter=2000,
                     class_weight="balanced",
-                    multi_class="auto",
                 ),
             ),
         ]
