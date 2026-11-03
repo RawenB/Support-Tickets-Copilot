@@ -1,0 +1,5 @@
+routing:
+  queue_field: queue
+  priority_field: priority
+  review_threshold: 0.70
+  fallback_route: manual_review

@@ -1,0 +1,9 @@
+train:
+  task: queue
+  model_name: distilbert-base-uncased
+  learning_rate: 0.00002
+  epochs: 3
+  batch_size: 16
+  max_length: 256
+  class_weights: true
+  output_dir: models/queue_model

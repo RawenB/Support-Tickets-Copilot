@@ -1,0 +1,104 @@
+stages:
+  ingest:
+    cmd: python -m copilot.data.ingest
+    deps:
+      - data/raw/customer-support-tickets.csv
+    params:
+      - params.yaml:
+          - seed
+    outs:
+      - data/interim/ingested.parquet
+
+  clean:
+    cmd: python -m copilot.data.clean
+    deps:
+      - data/interim/ingested.parquet
+    outs:
+      - data/processed/cleaned.parquet
+
+  dedupe:
+    cmd: python -m copilot.data.dedupe
+    deps:
+      - data/processed/cleaned.parquet
+    outs:
+      - data/processed/deduped.parquet
+
+  split:
+    cmd: python -m copilot.data.split
+    deps:
+      - data/processed/deduped.parquet
+    params:
+      - params.yaml:
+          - seed
+          - split
+    outs:
+      - data/splits/train.csv
+      - data/splits/val.csv
+      - data/splits/test.csv
+
+  train_queue:
+    cmd: python -m copilot.models.train --task queue
+    deps:
+      - data/splits/train.csv
+      - data/splits/val.csv
+      - configs/train_queue.yaml
+    params:
+      - params.yaml:
+          - seed
+          - train
+    outs:
+      - models/queue_model
+    metrics:
+      - reports/queue_metrics.json
+
+  train_priority:
+    cmd: python -m copilot.models.train --task priority
+    deps:
+      - data/splits/train.csv
+      - data/splits/val.csv
+      - configs/train_priority.yaml
+    params:
+      - params.yaml:
+          - seed
+          - train
+    outs:
+      - models/priority_model
+    metrics:
+      - reports/priority_metrics.json
+
+  evaluate:
+    cmd: python -m copilot.models.evaluate
+    deps:
+      - models/queue_model
+      - models/priority_model
+    params:
+      - params.yaml:
+          - f1_gate
+    metrics:
+      - reports/metrics_summary.json
+
+  build_faq_index:
+    cmd: python -m copilot.rag.faq_index
+    deps:
+      - data/faq/.gitkeep
+    outs:
+      - data/faq/index.faiss
+
+  simulate_stream:
+    cmd: python -m copilot.incidents.simulate_stream
+    deps:
+      - data/processed/deduped.parquet
+    outs:
+      - data/interim/incident_stream.csv
+    metrics:
+      - reports/incident_stream_metrics.json
+
+  incident_eval:
+    cmd: python -m copilot.incidents.detector
+    deps:
+      - data/interim/incident_stream.csv
+    params:
+      - params.yaml:
+          - incident
+    metrics:
+      - reports/incident_metrics.json

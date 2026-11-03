@@ -1,0 +1,5 @@
+rag:
+  embedder: all-MiniLM-L6-v2
+  k: 4
+  backend: local_gguf
+  faq_path: data/faq

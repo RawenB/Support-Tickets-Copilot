@@ -1,0 +1,26 @@
+seed: 42
+f1_gate: 0.70
+review_threshold: 0.70
+language: en
+min_queue_count: 5
+split:
+  train: 0.70
+  val: 0.15
+  test: 0.15
+near_duplicate_threshold: 0.92
+train:
+  model_name: distilbert-base-uncased
+  learning_rate: 2e-5
+  epochs: 3
+  batch_size: 16
+  max_length: 256
+  class_weights: true
+rag:
+  embedder: all-MiniLM-L6-v2
+  k: 4
+  backend: local_gguf
+incident:
+  eps: 0.3
+  min_samples: 5
+  window_minutes: 60
+  baseline_window: 7

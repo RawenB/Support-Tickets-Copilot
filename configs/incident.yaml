@@ -1,0 +1,6 @@
+incident:
+  eps: 0.3
+  min_samples: 5
+  window_minutes: 60
+  baseline_window: 7
+  alert_threshold: 0.80
