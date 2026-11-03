@@ -4,36 +4,55 @@ on:
   workflow_dispatch:
   push:
     branches: ["main"]
+  pull_request:
+    branches: ["main"]
 
 jobs:
   gate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -e .
+          python -m pip install -r requirements.txt
+          python -m pip install -e .
+
       - name: Enforce model quality gate
         run: |
           python - <<'PY'
-import json
-from pathlib import Path
+          import json
+          from pathlib import Path
 
-reports = sorted(Path('reports').glob('metrics_*.json'))
-if not reports:
-    raise SystemExit('No metrics report found in reports/ for model gate.')
+          import yaml
 
-with open(reports[-1], 'r', encoding='utf-8') as fh:
-    payload = json.load(fh)
+          threshold = 0.70
+          params_path = Path('params.yaml')
+          if params_path.exists():
+              with params_path.open('r', encoding='utf-8') as fh:
+                  params = yaml.safe_load(fh) or {}
+              threshold = float(params.get('f1_gate', threshold))
 
-f1 = float(payload.get('macro_f1', payload.get('macro_f1_score', 0.0)))
-threshold = float(payload.get('f1_gate', 0.70))
-if f1 < threshold:
-    raise SystemExit(f'Macro F1 {f1:.4f} is below gate {threshold:.2f}')
-print(f'Model quality gate passed: macro_f1={f1:.4f}, threshold={threshold:.2f}')
-PY
+          reports = sorted(Path('reports').glob('*_metrics.json'))
+          if not reports:
+              raise SystemExit('No metrics report found in reports/ for model gate.')
+
+          failures = []
+          for report_path in reports:
+              with report_path.open('r', encoding='utf-8') as fh:
+                  payload = json.load(fh)
+
+              f1 = float(payload.get('macro_f1', payload.get('macro_f1_score', 0.0)))
+              if f1 < threshold:
+                  failures.append(f"{report_path.name}: macro_f1={f1:.4f} < threshold={threshold:.2f}")
+
+          if failures:
+              raise SystemExit('Model quality gate failed:\n' + '\n'.join(failures))
+
+          print(f'Model quality gate passed for {len(reports)} report(s): threshold={threshold:.2f}')
+          PY

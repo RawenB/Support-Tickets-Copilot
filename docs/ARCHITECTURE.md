@@ -9,5 +9,8 @@ This repository is organized around a Python-first support intelligence workflow
 - RAG: FAQ index and grounded answer drafting
 - Incidents: DBSCAN and alert simulation
 - Storage: SQLite-backed repository and DVC-managed datasets
-- UI: Streamlit multipage support app
+- UI: Streamlit app using `st.navigation`, a dark theme defined in
+  `.streamlit/config.toml`, a shared design system in `app/ui/`, Material
+  Symbols icons (bundled with Streamlit), page views in `app/views/`, and UI
+  data services in `app/services/`
 - MLOps: MLflow, DVC, GitHub Actions, Evidently, and governance gates

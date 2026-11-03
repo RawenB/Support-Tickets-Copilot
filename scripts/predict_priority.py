@@ -11,9 +11,9 @@ MODEL_PATH = ROOT / "models" / "baseline_priority_model.joblib"
 
 
 def main() -> None:
-    payload = json.loads(sys.stdin.read() or '{}')
-    title = str(payload.get('title', '') or '').strip()
-    description = str(payload.get('description', '') or '').strip()
+    payload = json.loads(sys.stdin.read() or "{}")
+    title = str(payload.get("title", "") or "").strip()
+    description = str(payload.get("description", "") or "").strip()
     text = " ".join(part for part in [title, description] if part)
 
     if not text:

@@ -3,3 +3,16 @@ routing:
   priority_field: priority
   review_threshold: 0.70
   fallback_route: manual_review
+  priorities:
+    - critical
+    - high
+    - medium
+    - low
+  queue_team_map:
+    technical: Product Engineering
+    billing: Billing Ops
+    general: Support Desk
+    sales: Sales Support
+    account_management: Customer Success
+    shipping: Fulfillment
+    returns: Returns Team

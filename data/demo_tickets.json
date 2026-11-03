@@ -1,0 +1,62 @@
+[
+  {
+    "id": 1001,
+    "customer": "Alice Johnson",
+    "email": "alice@example.com",
+    "priority": "high",
+    "queue": "technical",
+    "subject": "Cannot login to dashboard",
+    "body": "I keep getting access denied after password reset. I need access to my account before the end of the day.",
+    "status": "new",
+    "ai_response": "Reset the user session and verify recent MFA and access policy changes before re-enabling the account.",
+    "agent": "Unassigned"
+  },
+  {
+    "id": 1002,
+    "customer": "Marcus Lee",
+    "email": "marcus@example.com",
+    "priority": "medium",
+    "queue": "billing",
+    "subject": "Invoice mismatch",
+    "body": "I was charged twice for the same month. Can someone review the invoice and explain the duplicate charge?",
+    "status": "in_review",
+    "ai_response": "Review the billing history and confirm whether a duplicate invoice was generated; if confirmed, issue a credit and notify the customer.",
+    "agent": "Nina"
+  },
+  {
+    "id": 1003,
+    "customer": "Priya Shah",
+    "email": "priya@example.com",
+    "priority": "low",
+    "queue": "general",
+    "subject": "Feature question",
+    "body": "Can you tell me how to enable exports in the admin portal? I need this for my team reporting.",
+    "status": "new",
+    "ai_response": "Navigate to Admin Settings > Reporting and enable export permissions for the relevant team role.",
+    "agent": "Unassigned"
+  },
+  {
+    "id": 1004,
+    "customer": "Derek Moss",
+    "email": "derek@example.com",
+    "priority": "critical",
+    "queue": "technical",
+    "subject": "Production outage",
+    "body": "Several users cannot access the workspace and API calls are timing out. This started 20 minutes ago.",
+    "status": "escalated",
+    "ai_response": "Escalate to the incident channel, confirm service health, and check recent deployment or dependency failures before restoring access.",
+    "agent": "Ops Team"
+  },
+  {
+    "id": 1005,
+    "customer": "Sofia Patel",
+    "email": "sofia@example.com",
+    "priority": "medium",
+    "queue": "general",
+    "subject": "Need account downgrade",
+    "body": "Our plan was updated automatically and we need to move to a lower tier for now. Please help us with the change. ",
+    "status": "new",
+    "ai_response": "Review the subscription change request and confirm the plan downgrade with the billing team before updating the account.",
+    "agent": "Unassigned"
+  }
+]

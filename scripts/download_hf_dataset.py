@@ -2,7 +2,6 @@ from pathlib import Path
 
 from datasets import load_dataset
 
-
 ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "data" / "huggingface"
 OUT_DIR.mkdir(parents=True, exist_ok=True)

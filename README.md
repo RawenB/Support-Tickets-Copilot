@@ -1,57 +1,36 @@
-# Tickets Copilot
+# Support Copilot
 
-Tickets Copilot is a modern support and operations workspace designed to help teams manage incoming requests, triage issues, assign ownership, and resolve tickets faster with AI-assisted guidance.
+Support Copilot is the internal support workspace for agents and admins. It brings together queue routing, human review, incident detection, and a polished inbox workflow in one product surface.
 
-## Project vision
+## Run locally
 
-This project brings together:
+1. Start the stream replay worker:
+   python -m copilot.incidents.simulate_stream
+2. Launch the app:
+   streamlit run app/streamlit_app.py
 
-- A customer-facing ticketing experience
-- An internal operations dashboard for agents and admins
-- A backend API for ticket workflows and integrations
-- Shared domain logic, validation, and data contracts
-- Infrastructure and deployment definitions for cloud hosting
+## Product behavior
 
-## Core goals
+- Agent-first inbox with triage, review, and resolution actions.
+- SQLite-backed ticket source with demo fallback when model artifacts are unavailable.
+- Admin-only views for models, drift, and release checks.
+- No automatic send actions: the agent must explicitly confirm any reply.
 
-- Centralize support ticket intake and tracking
-- Automate repetitive triage tasks
-- Improve response time and workload balancing
-- Provide a clear view of status, priority, and ownership
-- Scale cleanly across web, API, and shared business logic
+## Repo layout
 
-## Proposed architecture
+- app/ — Streamlit product UI and services
+- app/views/ — navigation pages registered with `st.navigation`
+- app/ui/ — shared design system, layout shell, and reusable components
+- .streamlit/ — dark theme configuration; icons use the Material Symbols font bundled with Streamlit
+- app/services/ — data access, analytics, and demo-mode fallbacks for the UI
+- src/copilot/ — business logic, repository, routing, incidents, and retrieval code
+- data/ — raw, processed, and demo data
+- configs/ — product configuration and routing labels
+- docs/ — model cards and operational docs
 
-- `apps/web` — frontend application for ticket submission, dashboard, and agent workflows
-- `apps/api` — backend service for authentication, data processing, ticket management, and integrations
-- `packages/shared` — reusable types, validation rules, and shared business logic
-- `docs` — product specs, architecture notes, and developer documentation
-- `infra` — infrastructure, deployment, and environment configuration
+## Verification
 
-## Repository layout
+Use pytest and ruff before shipping changes:
 
-```text
-.
-├── apps/
-│   ├── web/
-│   └── api/
-├── packages/
-│   └── shared/
-├── docs/
-├── infra/
-├── README.md
-├── .gitignore
-└── .github/
-```
-
-## Recommended next steps
-
-1. Define the ticket data model and user roles.
-2. Build the web app shell and dashboard pages.
-3. Implement the API endpoints for tickets, comments, and status updates.
-4. Centralize shared validation and schemas in the shared package.
-5. Add deployment and environment configuration in the infrastructure layer.
-
-## Notes
-
-This repo is intentionally scaffolded as a clean multi-part project so it can grow into a full production-ready ticketing platform without mixing frontend, backend, and infrastructure concerns.
+python -m pytest
+ruff check .

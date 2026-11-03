@@ -5,7 +5,9 @@
 - Use the src layout under `src/copilot`.
 - Keep all application code in Python modules under `src/copilot`.
 - Use configuration files in `configs/` and `params.yaml` instead of hard-coded values.
-- Keep the Streamlit UI in `app/` and page modules in `app/pages/`.
+- Keep the Streamlit UI in `app/`. Views live in `app/views/` and are registered
+  with `st.navigation`; shared UI primitives live in `app/ui/`; data access for
+  the UI lives in `app/services/`.
 
 ## Engineering rules
 
