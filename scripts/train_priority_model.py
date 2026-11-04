@@ -11,14 +11,13 @@ from sklearn.metrics import accuracy_score, classification_report, f1_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
+from copilot.utils.mlflow_utils import setup_mlflow
+
 ROOT = Path(__file__).resolve().parents[1]
 DATA_PATH = ROOT / "data" / "huggingface" / "customer-support-tickets.csv"
 MODEL_PATH = ROOT / "models" / "baseline_priority_model.joblib"
 MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-MLFLOW_TRACKING_URI = f"file://{ROOT / 'mlruns'}"
-
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-mlflow.set_experiment("tickets-copilot-priority-baseline")
+EXPERIMENT = "tickets-copilot-priority-baseline"
 
 
 def load_data() -> pd.DataFrame:
@@ -56,6 +55,7 @@ def build_model() -> Pipeline:
 
 
 def main() -> None:
+    setup_mlflow(EXPERIMENT)
     df = load_data()
     X = df["text"]
     y = df["priority"]

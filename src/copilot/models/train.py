@@ -16,6 +16,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
 from copilot.utils.config import load_yaml
+from copilot.utils.mlflow_utils import setup_mlflow
 from copilot.utils.seed import set_seed
 
 
@@ -107,8 +108,7 @@ def train(
     metrics_path.parent.mkdir(parents=True, exist_ok=True)
     metrics_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
 
-    mlflow.set_tracking_uri("file:///tmp/mlruns")
-    mlflow.set_experiment("support-copilot")
+    setup_mlflow("support-copilot")
     with mlflow.start_run(run_name=f"{task}-classifier") as run:
         mlflow.log_param("task", task)
         mlflow.log_param("model_type", "tfidf_logistic_regression")

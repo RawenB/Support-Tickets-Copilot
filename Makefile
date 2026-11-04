@@ -1,7 +1,7 @@
 PYTHON ?= python
 PACKAGE = copilot
 
-.PHONY: setup data train evaluate repro mlflow-ui app test lint
+.PHONY: setup data train evaluate repro mlflow-ui mlflow-smoke app test lint
 
 setup:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -20,7 +20,10 @@ repro:
 	dvc repro
 
 mlflow-ui:
-	mlflow ui --backend-store-uri file://$$(pwd)/mlruns
+	$(PYTHON) -m copilot.utils.mlflow_ui
+
+mlflow-smoke:
+	$(PYTHON) scripts/mlflow_smoke.py
 
 app:
 	streamlit run app/streamlit_app.py

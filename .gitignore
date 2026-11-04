@@ -8,6 +8,7 @@ __pycache__/
 *.db
 *.db-wal
 *.db-shm
+mlflow.db
 data/support_copilot.db
 data/support_copilot.db-wal
 data/support_copilot.db-shm
@@ -16,10 +17,12 @@ data/support_copilot.db-shm
 .dist/
 dist/
 build/
+*.egg-info/
 .next/
 out/
 coverage/
 mlruns/
+mlartifacts/
 
 # Environment files
 .env

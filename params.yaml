@@ -25,3 +25,6 @@ incident:
   window_minutes: 60
   baseline_window: 7
   replay_rate_seconds: 3
+mlflow:
+  tracking_uri: sqlite:///mlflow.db
+  artifact_root: ./mlartifacts

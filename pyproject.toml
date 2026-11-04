@@ -7,7 +7,7 @@ name = "support-copilot"
 version = "0.1.0"
 description = "Intelligent Triage & Technical Support Copilot"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 dependencies = []
 
 [tool.setuptools]
