@@ -4,6 +4,14 @@ node_modules/
 venv/
 __pycache__/
 
+# Local database artifacts
+*.db
+*.db-wal
+*.db-shm
+data/support_copilot.db
+data/support_copilot.db-wal
+data/support_copilot.db-shm
+
 # Build output
 .dist/
 dist/
@@ -29,3 +37,7 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+data/raw/customer-support-tickets.json
+data/*.db
+data/*.db-shm
+data/*.db-wal
