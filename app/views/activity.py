@@ -8,10 +8,10 @@ import pandas as pd
 import streamlit as st
 
 from app.services.ticket_service import (
-    REVIEW_CONFIDENCE_THRESHOLD,
     get_active_tickets,
     get_dashboard_metrics,
     get_recent_decisions,
+    get_review_threshold,
     queue_distribution,
 )
 from app.ui.components import empty_state, kpi_row, page_header, section_title
@@ -20,6 +20,7 @@ from app.ui.components import empty_state, kpi_row, page_header, section_title
 @st.fragment(run_every="3s")
 def activity_view() -> None:
     """Display handling metrics and recent human decisions for support agents."""
+    review_threshold = get_review_threshold()
     tickets = get_active_tickets()
     metrics = get_dashboard_metrics()
     decisions = get_recent_decisions(limit=12)
@@ -43,7 +44,7 @@ def activity_view() -> None:
             {
                 "label": "Needs review",
                 "value": metrics["needs_review"],
-                "delta": f"Below {REVIEW_CONFIDENCE_THRESHOLD:.0%} confidence",
+                "delta": f"Below {review_threshold:.0%} confidence",
                 "tone": "warning" if metrics["needs_review"] else "success",
                 "icon": "review",
             },
@@ -122,8 +123,7 @@ def activity_view() -> None:
             review = [
                 ticket
                 for ticket in tickets
-                if float(ticket.get("confidence", REVIEW_CONFIDENCE_THRESHOLD))
-                < REVIEW_CONFIDENCE_THRESHOLD
+                if float(ticket.get("confidence", review_threshold)) < review_threshold
             ]
             if review:
                 for ticket in review[:5]:

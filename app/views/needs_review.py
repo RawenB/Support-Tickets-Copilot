@@ -8,9 +8,9 @@ import streamlit as st
 
 from app.services.ticket_service import (
     PRIORITY_ORDER,
-    REVIEW_CONFIDENCE_THRESHOLD,
     format_ticket_age,
     get_active_tickets,
+    get_review_threshold,
 )
 from app.ui.components import (
     confidence_bar,
@@ -25,13 +25,13 @@ from app.ui.components import (
 @st.fragment(run_every="3s")
 def needs_review_view() -> None:
     """Show the tickets that require human review before resolution."""
+    review_threshold = get_review_threshold()
     tickets = get_active_tickets()
     review_tickets = sorted(
         (
             ticket
             for ticket in tickets
-            if float(ticket.get("confidence", REVIEW_CONFIDENCE_THRESHOLD))
-            < REVIEW_CONFIDENCE_THRESHOLD
+            if float(ticket.get("confidence", review_threshold)) < review_threshold
         ),
         key=lambda item: (
             float(item.get("confidence", 1.0)),
@@ -72,8 +72,8 @@ def needs_review_view() -> None:
             {
                 "label": "Avg confidence",
                 "value": f"{average_confidence:.0%}",
-                "delta": f"Threshold {REVIEW_CONFIDENCE_THRESHOLD:.0%}",
-                "tone": "danger" if average_confidence < REVIEW_CONFIDENCE_THRESHOLD else "success",
+                "delta": f"Threshold {review_threshold:.0%}",
+                "tone": "danger" if average_confidence < review_threshold else "success",
                 "icon": "trend",
             },
             {

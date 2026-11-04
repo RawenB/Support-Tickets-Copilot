@@ -8,14 +8,22 @@ from typing import Any
 import streamlit as st
 
 from app.services.ticket_service import (
-    REVIEW_CONFIDENCE_THRESHOLD,
+    confirm_routing,
+    correct_routing,
+    escalate,
     filter_tickets,
     format_ticket_age,
     get_active_tickets,
+    get_priority_choices,
+    get_queue_choices,
     get_queue_team_map,
     get_related_tickets,
+    get_review_threshold,
     get_ticket_sources,
-    log_ticket_decision,
+    regenerate_draft,
+    reject_draft,
+    save_draft,
+    send_reply,
     sort_tickets,
 )
 from app.ui.components import (
@@ -31,7 +39,7 @@ from app.ui.components import (
 )
 from app.ui.icons import material_ref
 
-PRIORITIES = ["All", "critical", "high", "medium", "low"]
+PRIORITIES = ["All", "critical", "high", "medium", "low", "very_low"]
 STATUSES = ["All", "new", "in_review", "escalated", "resolved"]
 
 
@@ -71,6 +79,33 @@ def _pick_ticket(
 
 def _meta_chip(label: str) -> str:
     return f'<span class="chip">{_escape(label)}</span>'
+
+
+def _next_active_ticket_id(current_ticket_id: str) -> str | None:
+    tickets = get_active_tickets()
+    ordered_ids = [str(ticket["ticket_id"]) for ticket in tickets]
+    if not ordered_ids:
+        return None
+    if current_ticket_id not in ordered_ids:
+        return ordered_ids[0]
+    current_index = ordered_ids.index(current_ticket_id)
+    for candidate in ordered_ids[current_index + 1 :] + ordered_ids[:current_index]:
+        if candidate != current_ticket_id:
+            return candidate
+    return ordered_ids[0] if ordered_ids[0] != current_ticket_id else None
+
+
+def _run_action_and_refresh(ticket_id: str, callback: Any) -> None:
+    result = callback()
+    if result.ok:
+        st.toast(result.message)
+        next_ticket_id = _next_active_ticket_id(str(ticket_id))
+        if next_ticket_id:
+            st.session_state["selected_ticket_id"] = str(next_ticket_id)
+            st.query_params["ticket"] = str(next_ticket_id)
+        st.rerun(scope="fragment")
+    else:
+        st.toast(result.message)
 
 
 @st.fragment(run_every="3s")
@@ -166,8 +201,9 @@ def inbox_view() -> None:
         queue = str(selected.get("queue", "general")).lower()
         team = queue_map.get(queue, "Support Desk")
         age = _escape(selected.get("age") or format_ticket_age(selected))
+        confidence_threshold = get_review_threshold()
         confidence = float(
-            selected.get("confidence", REVIEW_CONFIDENCE_THRESHOLD)
+            selected.get("confidence", confidence_threshold)
         )
 
         st.markdown(
@@ -196,14 +232,27 @@ def inbox_view() -> None:
             or "We reviewed the issue and have identified the likely fix. "
             "Please confirm the account permissions and retry the action."
         )
+        current_draft_value = st.session_state.get(f"draft_{selected['ticket_id']}", draft)
         section_title("AI draft", "Human review required before sending", icon="description")
         st.text_area(
             "Draft response",
-            value=draft,
+            value=current_draft_value,
             key=f"draft_{selected['ticket_id']}",
             label_visibility="collapsed",
             height=170,
         )
+        draft_source = (selected.get("draft_source") or "agent").lower()
+        latest_draft = None
+        try:
+            from app.services.ticket_service import get_latest_draft  # local import to avoid cycle
+
+            latest_draft = get_latest_draft(str(selected["ticket_id"]))
+            if latest_draft is not None:
+                draft_source = str(latest_draft.get("source", draft_source)).lower()
+        except Exception:  # pragma: no cover
+            pass
+        if draft_source == "template_fallback":
+            st.caption("Draft source: template_fallback")
 
         sources = get_ticket_sources(selected)
         with st.expander(
@@ -214,38 +263,93 @@ def inbox_view() -> None:
             for source in sources:
                 source_card(source)
 
-        if confidence < REVIEW_CONFIDENCE_THRESHOLD:
+        if confidence < confidence_threshold:
             alert_banner(
                 "Grounding warning: this draft falls below the confidence "
-                f"threshold ({confidence:.0%} < {REVIEW_CONFIDENCE_THRESHOLD:.0%}). "
+                f"threshold ({confidence:.0%} < {confidence_threshold:.0%}). "
                 "Review the sources before sending.",
                 tone="danger",
             )
 
         st.write("")
-        action_cols = st.columns([1.3, 1, 1, 1], gap="small")
-        if action_cols[0].button(
-            "Send reply", type="primary", width="stretch", icon=material_ref("send")
-        ):
-            log_ticket_decision(
-                str(selected["ticket_id"]), action="accepted", agent="agent"
+
+        def _save_edit() -> None:
+            draft_text = st.session_state.get(f"draft_{selected['ticket_id']}", "")
+            _run_action_and_refresh(
+                str(selected["ticket_id"]),
+                lambda: save_draft(
+                    str(selected["ticket_id"]),
+                    text=draft_text,
+                    source="agent",
+                ),
             )
-            st.toast("Reply logged as resolved and ready to send.")
-        if action_cols[1].button("Regenerate", width="stretch", icon=material_ref("refresh")):
-            log_ticket_decision(
-                str(selected["ticket_id"]), action="edited", agent="agent"
+
+        def _send_reply_action() -> None:
+            draft_text = st.session_state.get(f"draft_{selected['ticket_id']}", "")
+            _run_action_and_refresh(
+                str(selected["ticket_id"]),
+                lambda: send_reply(str(selected["ticket_id"]), text=draft_text, agent="agent"),
             )
-            st.toast("Draft regenerated with refreshed context.")
-        if action_cols[2].button("Reject", width="stretch", icon=material_ref("reject")):
-            log_ticket_decision(
-                str(selected["ticket_id"]), action="rejected", agent="agent"
+
+        def _regenerate_action() -> None:
+            _run_action_and_refresh(
+                str(selected["ticket_id"]),
+                lambda: regenerate_draft(str(selected["ticket_id"]), agent="agent"),
             )
-            st.toast("Draft rejected and returned to the queue.")
-        if action_cols[3].button("Escalate", width="stretch", icon=material_ref("escalate")):
-            log_ticket_decision(
-                str(selected["ticket_id"]), action="escalated", agent="agent"
+
+        def _reject_action() -> None:
+            _run_action_and_refresh(
+                str(selected["ticket_id"]),
+                lambda: reject_draft(
+                    str(selected["ticket_id"]),
+                    text=st.session_state.get(f"draft_{selected['ticket_id']}", draft),
+                    agent="agent",
+                ),
             )
-            st.toast("Ticket escalated to the incident workflow.")
+
+        def _escalate_action() -> None:
+            _run_action_and_refresh(
+                str(selected["ticket_id"]),
+                lambda: escalate(str(selected["ticket_id"]), agent="agent"),
+            )
+
+        action_cols = st.columns([1.4, 1.2, 1, 1, 1])
+        action_cols[0].button(
+            "Save edit",
+            width="stretch",
+            icon=material_ref("save"),
+            on_click=_save_edit,
+            disabled=status.lower() == "resolved",
+        )
+        action_cols[1].button(
+            "Send reply",
+            type="primary",
+            width="stretch",
+            icon=material_ref("send"),
+            on_click=_send_reply_action,
+            disabled=status.lower() == "resolved",
+        )
+        action_cols[2].button(
+            "Regenerate",
+            width="stretch",
+            icon=material_ref("refresh"),
+            on_click=_regenerate_action,
+            disabled=status.lower() == "resolved",
+        )
+        action_cols[3].button(
+            "Reject",
+            width="stretch",
+            icon=material_ref("reject"),
+            on_click=_reject_action,
+            disabled=status.lower() == "resolved",
+        )
+        action_cols[4].button(
+            "Escalate",
+            width="stretch",
+            icon=material_ref("escalate"),
+            on_click=_escalate_action,
+            disabled=status.lower() == "escalated",
+        )
 
     with right_col:
         section_title("AI copilot", "Routing and context", icon="models")
@@ -259,17 +363,60 @@ def inbox_view() -> None:
             )
             confidence_bar(confidence, caption=f"Routing confidence {confidence:.0%}")
             router_cols = st.columns(2)
-            if router_cols[0].button("Confirm", width="stretch", icon=material_ref("confirm")):
-                st.toast("Routing confirmed.")
-            corrected = router_cols[1].selectbox(
+            queue_choices = ["Keep current", *get_queue_choices()]
+            priority_choices = ["Keep current", *get_priority_choices()]
+
+            def _confirm_route() -> None:
+                result = confirm_routing(str(selected["ticket_id"]), agent="agent")
+                st.toast(result.message)
+                if result.ok:
+                    st.rerun(scope="fragment")
+
+            router_cols[0].button(
+                "Confirm",
+                width="stretch",
+                icon=material_ref("confirm"),
+                on_click=_confirm_route,
+                disabled=status.lower() == "assigned",
+            )
+
+            selected_queue = router_cols[1].selectbox(
                 "Correct queue",
-                ["Keep current", "Billing", "Technical", "General"],
+                queue_choices,
                 index=0,
-                key=f"correct_{selected['ticket_id']}",
+                key=f"queue_correction_{selected['ticket_id']}",
                 label_visibility="collapsed",
             )
-            if corrected != "Keep current":
-                st.info(f"Correction saved for retraining: {corrected}")
+            selected_priority = st.selectbox(
+                "Priority",
+                priority_choices,
+                index=0,
+                key=f"priority_correction_{selected['ticket_id']}",
+                label_visibility="collapsed",
+            )
+
+            def _save_correction() -> None:
+                queue_value = str(selected_queue).lower()
+                priority_value = str(selected_priority).lower()
+                if selected_queue == "Keep current":
+                    queue_value = str(selected.get("queue", "general")).lower()
+                if selected_priority == "Keep current":
+                    priority_value = str(selected.get("priority", "medium")).lower()
+                result = correct_routing(
+                    str(selected["ticket_id"]),
+                    queue=queue_value,
+                    priority=priority_value,
+                    team=get_queue_team_map().get(queue_value, "Support Desk"),
+                    agent="agent",
+                )
+                _run_action_and_refresh(str(selected["ticket_id"]), lambda: result)
+
+            st.button(
+                "Save correction",
+                key=f"save_correction_{selected['ticket_id']}",
+                type="secondary",
+                on_click=_save_correction,
+            )
 
         with st.container(border=True):
             section_title("Similar tickets", "Same queue", icon="ticket")

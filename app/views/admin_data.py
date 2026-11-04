@@ -6,8 +6,8 @@ import pandas as pd
 import streamlit as st
 
 from app.services.ticket_service import (
-    REVIEW_CONFIDENCE_THRESHOLD,
     get_active_tickets,
+    get_review_threshold,
     priority_distribution,
     queue_distribution,
 )
@@ -22,12 +22,12 @@ from app.ui.components import (
 
 def admin_data_view() -> None:
     """Display data drift, distribution, and dataset versioning context."""
+    review_threshold = get_review_threshold()
     tickets = get_active_tickets()
     review_count = sum(
         1
         for ticket in tickets
-        if float(ticket.get("confidence", REVIEW_CONFIDENCE_THRESHOLD))
-        < REVIEW_CONFIDENCE_THRESHOLD
+        if float(ticket.get("confidence", review_threshold)) < review_threshold
     )
     review_rate = (review_count / len(tickets) * 100) if tickets else 0.0
 
@@ -89,7 +89,7 @@ def admin_data_view() -> None:
         with st.container(border=True):
             section_title("Priority distribution", icon="trend")
             priority_counts = priority_distribution(tickets)
-            for priority in ["critical", "high", "medium", "low"]:
+            for priority in ["critical", "high", "medium", "low", "very_low"]:
                 st.markdown(
                     f"{priority_badge(priority)} "
                     f"<span class='muted' style='font-size:0.78rem;'>"

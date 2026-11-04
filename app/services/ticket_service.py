@@ -33,7 +33,7 @@ logger = logging.getLogger("support_copilot.ticket_service")
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEMO_TICKETS_PATH = PROJECT_ROOT / "data" / "demo_tickets.json"
 ACTIVE_STATUSES = {"new", "in_review", "assigned"}
-PRIORITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+PRIORITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3, "very_low": 4}
 
 
 @dataclass
@@ -48,15 +48,24 @@ def _load_routing_config() -> dict[str, Any]:
     if not config_path.exists():
         return {
             "routing": {
-                "review_threshold": 0.8,
+                "review_threshold": 0.7,
                 "queue_team_map": {
                     "technical": "Product Engineering",
                     "billing": "Billing Ops",
                     "general": "Support Desk",
                 },
-                "priorities": ["critical", "high", "medium", "low"],
+                "priorities": ["critical", "high", "medium", "low", "very_low"],
             }
         }
+    with config_path.open("r", encoding="utf-8") as handle:
+        payload = yaml.safe_load(handle) or {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _load_params_config() -> dict[str, Any]:
+    config_path = PROJECT_ROOT / "params.yaml"
+    if not config_path.exists():
+        return {"review_threshold": 0.70}
     with config_path.open("r", encoding="utf-8") as handle:
         payload = yaml.safe_load(handle) or {}
     return payload if isinstance(payload, dict) else {}
@@ -96,14 +105,13 @@ def _edit_distance(left: str, right: str) -> int:
 
 def get_review_threshold() -> float:
     config = _load_routing_config().get("routing", {})
+    threshold = config.get("review_threshold")
+    if threshold is None:
+        threshold = _load_params_config().get("review_threshold", 0.70)
     try:
-        threshold = float(config.get("review_threshold", 0.8))
+        return float(threshold)
     except (TypeError, ValueError):
-        return 0.8
-    return 0.8 if threshold < 0.8 else threshold
-
-
-REVIEW_CONFIDENCE_THRESHOLD = 0.8
+        return 0.70
 
 
 def get_queue_choices() -> list[str]:
@@ -116,7 +124,7 @@ def get_queue_choices() -> list[str]:
 
 def get_priority_choices() -> list[str]:
     config = _load_routing_config().get("routing", {})
-    priorities = config.get("priorities", ["critical", "high", "medium", "low"])
+    priorities = config.get("priorities", ["critical", "high", "medium", "low", "very_low"])
     return [str(item).lower() for item in priorities]
 
 
@@ -247,7 +255,7 @@ def get_dashboard_metrics() -> dict[str, int | float]:
     open_count = sum(
         1 for item in tickets if str(item.get("status", "")).lower() in ACTIVE_STATUSES
     )
-    threshold = REVIEW_CONFIDENCE_THRESHOLD
+    threshold = get_review_threshold()
     needs_review = sum(
         1 for item in tickets if float(item.get("confidence", threshold)) < threshold
     )
@@ -375,45 +383,72 @@ def save_draft(
 
 
 def regenerate_draft(ticket_id: str, *, agent: str = "agent") -> ActionResult:
-    """Regenerate a new AI draft using the rag generator or a template fallback."""
+    """Regenerate a new draft using RAG context or a template fallback."""
 
     def _operation() -> ActionResult:
         ticket = get_ticket_by_id(str(ticket_id)) or {
             "subject": "support request",
             "queue": "general",
         }
+        sources: list[dict[str, Any]] = []
         generated = ""
+        source = "template_fallback"
         try:
-            from copilot.rag import generator as rag_generator
+            from copilot.rag import retriever as rag_retriever
 
-            candidate = rag_generator.generate_answer(ticket)
-            if isinstance(candidate, str) and candidate.strip():
-                generated = candidate.strip()
+            passages = rag_retriever.retrieve(ticket, limit=3)
+            sources = [
+                {"id": f"FAQ-{index + 1}", "score": 0.9 - index * 0.05, "text": passage}
+                for index, passage in enumerate(passages)
+            ]
+            if sources:
+                try:
+                    from copilot.rag import generator as rag_generator
+
+                    candidate = rag_generator.generate_answer(ticket, passages=passages)
+                    if isinstance(candidate, str) and candidate.strip():
+                        generated = candidate.strip()
+                        source = "rag"
+                except Exception:
+                    logger.info("RAG generator unavailable; using template fallback.")
         except Exception:
-            logger.info("RAG generator unavailable; using template fallback.")
+            logger.info("RAG retriever unavailable; using template fallback.")
+
         if not generated:
             queue_name = str(ticket.get("queue", "general")).lower()
             subject_name = str(ticket.get("subject", "this support request"))
+            problem_text = str(ticket.get("body") or "Customer reported this issue.")
             generated = (
                 f"Thanks for reporting the {queue_name} issue about {subject_name}. "
+                f"The current ticket states: {problem_text} "
                 "I’ve reviewed the current context and am confirming the next step "
                 "with the right team before sending the final update."
             )
-        sources = get_ticket_sources(ticket)
-        draft = save_draft_in_repo(ticket_id, text=generated, source="ai", sources=sources)
+            source = "template_fallback"
+            if not sources:
+                sources = [
+                    {
+                        "id": f"TEMPLATE-{queue_name.upper()}-1",
+                        "score": 0.75,
+                        "text": problem_text,
+                    }
+                ]
+
+        draft = save_draft_in_repo(ticket_id, text=generated, source=source, sources=sources)
         update_ticket_fields(ticket_id, status="in_review")
         log_ticket_decision(ticket_id, action="edited", agent=agent)
         return ActionResult(
             True,
-            f"Draft regenerated to version {draft['version']}.",
-            {"draft": draft},
+            f"Draft regenerated to version {draft['version']} ({source}).",
+            {"draft": draft, "source": source},
         )
 
     return _safe_action_wrapper("Regenerate draft", _operation)
 
 
 def send_reply(ticket_id: str, *, text: str, agent: str = "agent") -> ActionResult:
-    """Persist the submitted reply and mark the ticket resolved without sending a real email."""
+    """Persist the submitted reply without mutating the original ticket body."""
+
     def _operation() -> ActionResult:
         cleaned = (text or "").strip()
         if not cleaned:
@@ -431,7 +466,7 @@ def send_reply(ticket_id: str, *, text: str, agent: str = "agent") -> ActionResu
             edit_distance=int(distance),
             final_text=cleaned,
         )
-        update_ticket_fields(str(ticket_id), status="resolved", body=cleaned)
+        update_ticket_fields(str(ticket_id), status="resolved")
         decision = "accepted" if outcome == "accepted" else "edited"
         log_ticket_decision(str(ticket_id), action=decision, agent=agent)
         return ActionResult(
@@ -551,7 +586,7 @@ def filter_tickets(
 ) -> list[dict[str, Any]]:
     """Filter tickets by free-text search and facet selections."""
     query = search.strip().lower()
-    threshold = REVIEW_CONFIDENCE_THRESHOLD
+    threshold = get_review_threshold()
     filtered: list[dict[str, Any]] = []
     for ticket in tickets:
         if query:

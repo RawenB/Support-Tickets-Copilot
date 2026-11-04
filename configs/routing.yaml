@@ -8,6 +8,7 @@ routing:
     - high
     - medium
     - low
+    - very_low
   queue_team_map:
     technical: Product Engineering
     billing: Billing Ops

@@ -160,7 +160,7 @@ def incidents_view() -> None:
         priority_counts = priority_distribution(tickets)
         with st.container(border=True):
             section_title("Priority mix", icon="trend")
-            for priority in ["critical", "high", "medium", "low"]:
+            for priority in ["critical", "high", "medium", "low", "very_low"]:
                 count = priority_counts.get(priority, 0)
                 st.markdown(
                     f"{priority_badge(priority)} "

@@ -17,10 +17,10 @@ def _escape(value: Any) -> str:
 def priority_badge(priority: str) -> str:
     """Return HTML markup for a priority label."""
     normalized = (priority or "medium").lower()
-    label = normalized.title()
+    label = "Very Low" if normalized == "very_low" else normalized.title()
     cls = (
         "priority-low"
-        if normalized == "low"
+        if normalized in {"low", "very_low"}
         else "priority-medium"
         if normalized == "medium"
         else "priority-high"

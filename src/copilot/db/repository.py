@@ -8,6 +8,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DB_PATH = PROJECT_ROOT / "data" / "support_copilot.db"
 
@@ -47,6 +49,11 @@ def _normalize_ticket(record: dict[str, Any]) -> dict[str, Any]:
     record.setdefault("body", record.get("body") or "")
     record.setdefault("queue", record.get("queue") or "general")
     record.setdefault("priority", record.get("priority") or "medium")
+    record.setdefault("true_queue", record.get("true_queue") or record.get("queue") or "general")
+    record.setdefault(
+        "true_priority",
+        record.get("true_priority") or record.get("priority") or "medium",
+    )
     record.setdefault("status", record.get("status") or "new")
     record.setdefault("confidence", float(record.get("confidence") or 0.75))
     record.setdefault("team", record.get("team") or "Support Desk")
@@ -64,6 +71,12 @@ def _ensure_ticket_columns(connection: sqlite3.Connection) -> None:
         connection.execute(
             "ALTER TABLE tickets ADD COLUMN team TEXT NOT NULL DEFAULT 'Support Desk'"
         )
+    if "true_queue" not in columns:
+        connection.execute("ALTER TABLE tickets ADD COLUMN true_queue TEXT")
+    if "true_priority" not in columns:
+        connection.execute("ALTER TABLE tickets ADD COLUMN true_priority TEXT")
+    if "spike_id" not in columns:
+        connection.execute("ALTER TABLE tickets ADD COLUMN spike_id TEXT")
 
 
 def initialize_database() -> None:
@@ -77,6 +90,9 @@ def initialize_database() -> None:
                 body TEXT NOT NULL,
                 queue TEXT NOT NULL,
                 priority TEXT NOT NULL,
+                true_queue TEXT,
+                true_priority TEXT,
+                spike_id TEXT,
                 status TEXT NOT NULL,
                 confidence REAL NOT NULL,
                 customer_name TEXT NOT NULL,
@@ -159,64 +175,42 @@ def initialize_database() -> None:
             """
         )
 
-        if connection.execute("SELECT COUNT(*) FROM tickets").fetchone()[0] == 0:
-            demo_path = PROJECT_ROOT / "data" / "demo_tickets.json"
-            if demo_path.exists():
-                with demo_path.open("r", encoding="utf-8") as handle:
-                    rows = json.load(handle)
-                for row in rows:
-                    ticket = _normalize_ticket(
-                        {
-                            "ticket_id": row.get("id", "TKT-1"),
-                            "subject": row.get("subject"),
-                            "body": row.get("body"),
-                            "queue": row.get("queue"),
-                            "priority": row.get("priority"),
-                            "status": row.get("status"),
-                            "confidence": row.get("confidence", 0.86),
-                            "customer_name": row.get("customer"),
-                            "customer_email": row.get("email"),
-                            "assigned_agent": row.get("agent"),
-                            "team": row.get("team") or "Support Desk",
-                            "created_at": (
-                                datetime.now(timezone.utc) - timedelta(minutes=12)
-                            ).isoformat(),
-                        }
-                    )
-                    connection.execute(
-                        """
-                        INSERT INTO tickets (
-                            ticket_id, subject, body, queue, priority, status,
-                            confidence, customer_name, customer_email,
-                            assigned_agent, team, created_at, updated_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        (
-                            ticket["ticket_id"],
-                            ticket["subject"],
-                            ticket["body"],
-                            ticket["queue"],
-                            ticket["priority"],
-                            ticket["status"],
-                            ticket["confidence"],
-                            ticket["customer_name"],
-                            ticket["customer_email"],
-                            ticket["assigned_agent"],
-                            ticket["team"],
-                            ticket["created_at"],
-                            ticket["created_at"],
-                        ),
-                    )
+        # Demo tickets are intentionally seeded by explicit scripts, not by the schema
+        # initializer. This keeps database initialization idempotent and allows the app
+        # UI to fall back to demo payloads without mutating the live ticket store.
+
+
+def _review_threshold() -> float:
+    """Return the configured review threshold from params.yaml."""
+    params_path = PROJECT_ROOT / "params.yaml"
+    if not params_path.exists():
+        return 0.70
+    with params_path.open("r", encoding="utf-8") as handle:
+        payload = yaml.safe_load(handle) or {}
+    threshold = payload.get("review_threshold", 0.70)
+    try:
+        return float(threshold)
+    except (TypeError, ValueError):
+        return 0.70
 
 
 def list_tickets(*, limit: int | None = None, needs_review: bool = False) -> list[dict[str, Any]]:
     """Fetch tickets from SQLite sorted by priority and recency."""
     initialize_database()
+    threshold = _review_threshold()
     with _connect() as connection:
         query = "SELECT * FROM tickets"
         if needs_review:
-            query += " WHERE confidence < 0.80"
-        query += " ORDER BY priority DESC, created_at DESC"
+            query += f" WHERE confidence < {threshold}"
+        query += (
+            " ORDER BY CASE priority "
+            "WHEN 'critical' THEN 0 "
+            "WHEN 'high' THEN 1 "
+            "WHEN 'medium' THEN 2 "
+            "WHEN 'low' THEN 3 "
+            "WHEN 'very_low' THEN 4 "
+            "ELSE 5 END, created_at DESC"
+        )
         if limit:
             query += f" LIMIT {int(limit)}"
         rows = connection.execute(query).fetchall()
@@ -234,14 +228,18 @@ def upsert_ticket(record: dict[str, Any]) -> dict[str, Any]:
         connection.execute(
             """
             INSERT INTO tickets (
-                ticket_id, subject, body, queue, priority, status, confidence,
-                customer_name, customer_email, assigned_agent, team, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ticket_id, subject, body, queue, priority, true_queue, true_priority,
+                spike_id, status, confidence, customer_name, customer_email, assigned_agent,
+                team, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(ticket_id) DO UPDATE SET
                 subject = excluded.subject,
                 body = excluded.body,
                 queue = excluded.queue,
                 priority = excluded.priority,
+                true_queue = excluded.true_queue,
+                true_priority = excluded.true_priority,
+                spike_id = excluded.spike_id,
                 status = excluded.status,
                 confidence = excluded.confidence,
                 customer_name = excluded.customer_name,
@@ -256,6 +254,9 @@ def upsert_ticket(record: dict[str, Any]) -> dict[str, Any]:
                 ticket["body"],
                 ticket["queue"],
                 ticket["priority"],
+                ticket.get("true_queue", ticket["queue"]),
+                ticket.get("true_priority", ticket["priority"]),
+                ticket.get("spike_id"),
                 ticket["status"],
                 ticket["confidence"],
                 ticket["customer_name"],
@@ -507,8 +508,9 @@ def list_ticket_actions(*, limit: int = 20) -> list[dict[str, Any]]:
 def get_dashboard_metrics() -> dict[str, int | float]:
     """Return the queue metrics used by the top bar and main inbox."""
     tickets = list_tickets()
+    threshold = _review_threshold()
     open_count = sum(1 for item in tickets if item["status"] in {"new", "in_review", "assigned"})
-    needs_review_count = sum(1 for item in tickets if item["confidence"] < 0.8)
+    needs_review_count = sum(1 for item in tickets if item["confidence"] < threshold)
     escalated_count = sum(1 for item in tickets if item["status"] == "escalated")
     avg_response = 8
     return {

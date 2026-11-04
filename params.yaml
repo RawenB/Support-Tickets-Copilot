@@ -24,3 +24,4 @@ incident:
   min_samples: 5
   window_minutes: 60
   baseline_window: 7
+  replay_rate_seconds: 3
