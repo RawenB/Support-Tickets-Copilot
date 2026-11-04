@@ -77,7 +77,7 @@ def _sample_tickets() -> list[dict]:
             "queue": "technical",
             "priority": "low",
             "status": "escalated",
-            "confidence": 0.7,
+            "confidence": 0.65,
         },
     ]
 
