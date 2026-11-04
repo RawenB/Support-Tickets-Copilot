@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from copilot.db.repository import upsert_ticket
-
 from app.services.ticket_service import (
     filter_tickets,
     format_ticket_age,
@@ -13,6 +11,7 @@ from app.services.ticket_service import (
     queue_distribution,
     sort_tickets,
 )
+from copilot.db.repository import upsert_ticket
 
 
 def test_service_returns_expected_fields() -> None:

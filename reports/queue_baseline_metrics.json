@@ -1,0 +1,7 @@
+{
+  "task": "queue",
+  "model_path": "models/queue_baseline_model/queue_baseline_model.joblib",
+  "macro_f1": 1.0,
+  "train_size": 2,
+  "val_size": 1
+}

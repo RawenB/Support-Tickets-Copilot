@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from copilot.data.audit import audit
 from copilot.models.baseline import baseline
 from copilot.models.calibrate import calibrate
 from copilot.models.evaluate import evaluate
@@ -93,3 +94,34 @@ def test_train_and_evaluate_with_synthetic_data(tmp_path: Path) -> None:
     metrics = evaluate(data_path=data_path, model_path=result["model_path"], task="queue")
     assert "macro_f1" in metrics
     assert metrics["macro_f1"] >= 0.0
+
+
+def test_baseline_and_audit_exercise_real_pipeline_behavior(tmp_path: Path) -> None:
+    df = pd.DataFrame(
+        {
+            "subject": ["login issue", "login issue", "refund request", "refund request"],
+            "body": ["cannot sign in", "failed sign in", "charged wrong", "refund money"],
+            "queue": ["technical", "technical", "billing", "billing"],
+            "priority": ["high", "high", "low", "low"],
+            "language": ["en", "en", "en", "en"],
+        }
+    )
+    baseline_result = baseline(df, task="queue")
+    assert baseline_result["task"] == "queue"
+    assert baseline_result["macro_f1"] >= 0.5
+
+    audit_summary = audit(df)
+    assert audit_summary["row_count"] == 4
+    assert audit_summary["languages"]["en"] == 4
+
+    prediction = predict(
+        "cannot access my account",
+        task="queue",
+        model_path=baseline_result["model_path"],
+    )
+    assert prediction["task"] == "queue"
+    assert prediction["label"] in {"technical", "billing"}
+
+    calibrated = calibrate(baseline_result["model_path"], task="queue")
+    assert "threshold" in calibrated
+    assert calibrated["threshold"] > 0.0
