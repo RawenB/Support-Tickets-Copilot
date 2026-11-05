@@ -95,15 +95,24 @@ def _next_active_ticket_id(current_ticket_id: str) -> str | None:
     return ordered_ids[0] if ordered_ids[0] != current_ticket_id else None
 
 
-def _run_action_and_refresh(ticket_id: str, callback: Any) -> None:
+def _run_action_and_refresh(
+    ticket_id: str,
+    callback: Any,
+    *,
+    advance: bool = True,
+) -> None:
     result = callback()
     if result.ok:
+        draft_payload = result.data.get("draft") if isinstance(result.data, dict) else None
+        if isinstance(draft_payload, dict) and draft_payload.get("text"):
+            st.session_state[f"draft_{ticket_id}"] = str(draft_payload["text"])
         st.toast(result.message)
-        next_ticket_id = _next_active_ticket_id(str(ticket_id))
-        if next_ticket_id:
-            st.session_state["selected_ticket_id"] = str(next_ticket_id)
-            st.query_params["ticket"] = str(next_ticket_id)
-        st.rerun(scope="fragment")
+        if advance:
+            next_ticket_id = _next_active_ticket_id(str(ticket_id))
+            if next_ticket_id:
+                st.session_state["selected_ticket_id"] = str(next_ticket_id)
+                st.query_params["ticket"] = str(next_ticket_id)
+        st.rerun()
     else:
         st.toast(result.message)
 
@@ -226,8 +235,16 @@ def inbox_view() -> None:
             )
             st.write(selected.get("body", ""))
 
+        latest_draft = None
+        try:
+            from app.services.ticket_service import get_latest_draft  # local import to avoid cycle
+
+            latest_draft = get_latest_draft(str(selected["ticket_id"]))
+        except Exception:  # pragma: no cover
+            pass
         draft = (
-            selected.get("draft")
+            (latest_draft or {}).get("text")
+            or selected.get("draft")
             or selected.get("ai_response")
             or "We reviewed the issue and have identified the likely fix. "
             "Please confirm the account permissions and retry the action."
@@ -242,15 +259,8 @@ def inbox_view() -> None:
             height=170,
         )
         draft_source = (selected.get("draft_source") or "agent").lower()
-        latest_draft = None
-        try:
-            from app.services.ticket_service import get_latest_draft  # local import to avoid cycle
-
-            latest_draft = get_latest_draft(str(selected["ticket_id"]))
-            if latest_draft is not None:
-                draft_source = str(latest_draft.get("source", draft_source)).lower()
-        except Exception:  # pragma: no cover
-            pass
+        if latest_draft is not None:
+            draft_source = str(latest_draft.get("source", draft_source)).lower()
         if draft_source == "template_fallback":
             st.caption("Draft source: template_fallback")
 
@@ -282,6 +292,7 @@ def inbox_view() -> None:
                     text=draft_text,
                     source="agent",
                 ),
+                advance=False,
             )
 
         def _send_reply_action() -> None:
@@ -295,6 +306,7 @@ def inbox_view() -> None:
             _run_action_and_refresh(
                 str(selected["ticket_id"]),
                 lambda: regenerate_draft(str(selected["ticket_id"]), agent="agent"),
+                advance=False,
             )
 
         def _reject_action() -> None:
@@ -370,7 +382,7 @@ def inbox_view() -> None:
                 result = confirm_routing(str(selected["ticket_id"]), agent="agent")
                 st.toast(result.message)
                 if result.ok:
-                    st.rerun(scope="fragment")
+                    st.rerun()
 
             router_cols[0].button(
                 "Confirm",
@@ -409,7 +421,9 @@ def inbox_view() -> None:
                     team=get_queue_team_map().get(queue_value, "Support Desk"),
                     agent="agent",
                 )
-                _run_action_and_refresh(str(selected["ticket_id"]), lambda: result)
+                _run_action_and_refresh(
+                    str(selected["ticket_id"]), lambda: result, advance=False
+                )
 
             st.button(
                 "Save correction",
