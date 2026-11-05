@@ -382,64 +382,69 @@ def save_draft(
     return _safe_action_wrapper("Save draft", _operation)
 
 
+def _build_draft(ticket: dict[str, Any], variant: int) -> tuple[str, str, list[dict[str, Any]]]:
+    """Return (text, source, sources) for a ticket; `variant` changes style and evidence order."""
+    sources: list[dict[str, Any]] = []
+    passages: list[str] = []
+    try:
+        from copilot.rag import retriever as rag_retriever
+
+        passages = list(rag_retriever.retrieve(ticket, limit=3))
+        sources = [
+            {"id": f"FAQ-{index + 1}", "score": round(0.9 - index * 0.05, 2), "text": passage}
+            for index, passage in enumerate(passages)
+        ]
+    except Exception:
+        logger.info("RAG retriever unavailable; using template fallback.")
+
+    from copilot.rag import generator as rag_generator
+
+    text = rag_generator.generate_answer(ticket, passages=passages, variant=variant)
+    source = "rag" if passages else "template_fallback"
+    if not sources:
+        queue_name = str(ticket.get("queue", "general")).lower()
+        sources = [
+            {
+                "id": f"TEMPLATE-{queue_name.upper()}-1",
+                "score": 0.75,
+                "text": str(ticket.get("body") or "Customer reported this issue."),
+            }
+        ]
+    return text.strip(), source, sources
+
+
+def ensure_first_draft(ticket_id: str) -> dict[str, Any] | None:
+    """Create draft v1 the first time a ticket is opened (no status change, no decision log)."""
+    existing = get_latest_draft(str(ticket_id))
+    if existing is not None:
+        return existing
+    ticket = get_ticket_by_id(str(ticket_id))
+    if ticket is None:
+        return None
+    try:
+        text, source, sources = _build_draft(ticket, variant=0)
+        return save_draft_in_repo(str(ticket_id), text=text, source=source, sources=sources)
+    except Exception:  # pragma: no cover
+        logger.exception("Could not create the first draft for %s", ticket_id)
+        return None
+
+
 def regenerate_draft(ticket_id: str, *, agent: str = "agent") -> ActionResult:
-    """Regenerate a new draft using RAG context or a template fallback."""
+    """Create a NEW draft version (different style and evidence order each time)."""
 
     def _operation() -> ActionResult:
-        ticket = get_ticket_by_id(str(ticket_id)) or {
-            "subject": "support request",
-            "queue": "general",
-        }
-        sources: list[dict[str, Any]] = []
-        generated = ""
-        source = "template_fallback"
-        try:
-            from copilot.rag import retriever as rag_retriever
-
-            passages = rag_retriever.retrieve(ticket, limit=3)
-            sources = [
-                {"id": f"FAQ-{index + 1}", "score": 0.9 - index * 0.05, "text": passage}
-                for index, passage in enumerate(passages)
-            ]
-            if sources:
-                try:
-                    from copilot.rag import generator as rag_generator
-
-                    candidate = rag_generator.generate_answer(ticket, passages=passages)
-                    if isinstance(candidate, str) and candidate.strip():
-                        generated = candidate.strip()
-                        source = "rag"
-                except Exception:
-                    logger.info("RAG generator unavailable; using template fallback.")
-        except Exception:
-            logger.info("RAG retriever unavailable; using template fallback.")
-
-        if not generated:
-            queue_name = str(ticket.get("queue", "general")).lower()
-            subject_name = str(ticket.get("subject", "this support request"))
-            problem_text = str(ticket.get("body") or "Customer reported this issue.")
-            generated = (
-                f"Thanks for reporting the {queue_name} issue about {subject_name}. "
-                f"The current ticket states: {problem_text} "
-                "I’ve reviewed the current context and am confirming the next step "
-                "with the right team before sending the final update."
-            )
-            source = "template_fallback"
-            if not sources:
-                sources = [
-                    {
-                        "id": f"TEMPLATE-{queue_name.upper()}-1",
-                        "score": 0.75,
-                        "text": problem_text,
-                    }
-                ]
-
-        draft = save_draft_in_repo(ticket_id, text=generated, source=source, sources=sources)
+        ticket = get_ticket_by_id(str(ticket_id))
+        if ticket is None:
+            return ActionResult(False, "Ticket not found.", {"ticket_id": ticket_id})
+        latest = get_latest_draft(str(ticket_id))
+        variant = int(latest["version"]) if latest else 0
+        text, source, sources = _build_draft(ticket, variant=variant)
+        draft = save_draft_in_repo(str(ticket_id), text=text, source=source, sources=sources)
         update_ticket_fields(ticket_id, status="in_review")
-        log_ticket_decision(ticket_id, action="edited", agent=agent)
+        log_ticket_decision(ticket_id, action="regenerated", agent=agent)
         return ActionResult(
             True,
-            f"Draft regenerated to version {draft['version']} ({source}).",
+            f"New draft created (version {draft['version']}).",
             {"draft": draft, "source": source},
         )
 

@@ -10,6 +10,7 @@ import streamlit as st
 from app.services.ticket_service import (
     confirm_routing,
     correct_routing,
+    ensure_first_draft,
     escalate,
     filter_tickets,
     format_ticket_age,
@@ -95,26 +96,20 @@ def _next_active_ticket_id(current_ticket_id: str) -> str | None:
     return ordered_ids[0] if ordered_ids[0] != current_ticket_id else None
 
 
-def _run_action_and_refresh(
-    ticket_id: str,
-    callback: Any,
-    *,
-    advance: bool = True,
-) -> None:
+def _run_action_and_refresh(ticket_id: str, callback: Any, *, advance: bool = True) -> Any:
+    """Run a service action from an on_click callback (Streamlit reruns the fragment by itself).
+
+    advance=True moves to the next ticket (use it for Send, Reject, Escalate).
+    advance=False keeps the same ticket open (use it for Save edit and Regenerate).
+    """
     result = callback()
-    if result.ok:
-        draft_payload = result.data.get("draft") if isinstance(result.data, dict) else None
-        if isinstance(draft_payload, dict) and draft_payload.get("text"):
-            st.session_state[f"draft_{ticket_id}"] = str(draft_payload["text"])
-        st.toast(result.message)
-        if advance:
-            next_ticket_id = _next_active_ticket_id(str(ticket_id))
-            if next_ticket_id:
-                st.session_state["selected_ticket_id"] = str(next_ticket_id)
-                st.query_params["ticket"] = str(next_ticket_id)
-        st.rerun()
-    else:
-        st.toast(result.message)
+    st.toast(result.message)
+    if result.ok and advance:
+        next_ticket_id = _next_active_ticket_id(str(ticket_id))
+        if next_ticket_id:
+            st.session_state["selected_ticket_id"] = str(next_ticket_id)
+            st.query_params["ticket"] = str(next_ticket_id)
+    return result
 
 
 @st.fragment(run_every="3s")
@@ -235,34 +230,26 @@ def inbox_view() -> None:
             )
             st.write(selected.get("body", ""))
 
-        latest_draft = None
-        try:
-            from app.services.ticket_service import get_latest_draft  # local import to avoid cycle
-
-            latest_draft = get_latest_draft(str(selected["ticket_id"]))
-        except Exception:  # pragma: no cover
-            pass
-        draft = (
-            (latest_draft or {}).get("text")
-            or selected.get("draft")
-            or selected.get("ai_response")
-            or "We reviewed the issue and have identified the likely fix. "
-            "Please confirm the account permissions and retry the action."
-        )
-        current_draft_value = st.session_state.get(f"draft_{selected['ticket_id']}", draft)
+        draft_key = f"draft_{selected['ticket_id']}"
+        latest_draft = ensure_first_draft(str(selected["ticket_id"]))
+        if draft_key not in st.session_state:
+            st.session_state[draft_key] = str((latest_draft or {}).get("text", ""))
         section_title("AI draft", "Human review required before sending", icon="description")
         st.text_area(
             "Draft response",
-            value=current_draft_value,
-            key=f"draft_{selected['ticket_id']}",
+            key=draft_key,
             label_visibility="collapsed",
             height=170,
+            placeholder="No draft yet. Click Regenerate.",
         )
-        draft_source = (selected.get("draft_source") or "agent").lower()
-        if latest_draft is not None:
-            draft_source = str(latest_draft.get("source", draft_source)).lower()
-        if draft_source == "template_fallback":
-            st.caption("Draft source: template_fallback")
+        if latest_draft:
+            draft_source = str(latest_draft.get("source", "agent")).lower()
+            label = {
+                "rag": "retrieved FAQ passages",
+                "template_fallback": "template (no FAQ match)",
+                "agent": "edited by agent",
+            }.get(draft_source, draft_source)
+            st.caption(f"Draft version {latest_draft.get('version', 1)} · based on {label}")
 
         sources = get_ticket_sources(selected)
         with st.expander(
@@ -303,18 +290,21 @@ def inbox_view() -> None:
             )
 
         def _regenerate_action() -> None:
-            _run_action_and_refresh(
+            result = _run_action_and_refresh(
                 str(selected["ticket_id"]),
                 lambda: regenerate_draft(str(selected["ticket_id"]), agent="agent"),
                 advance=False,
             )
+            if result.ok:
+                # the text area is bound to session_state, so push the new text into it
+                st.session_state[draft_key] = str(result.data["draft"]["text"])
 
         def _reject_action() -> None:
             _run_action_and_refresh(
                 str(selected["ticket_id"]),
                 lambda: reject_draft(
                     str(selected["ticket_id"]),
-                    text=st.session_state.get(f"draft_{selected['ticket_id']}", draft),
+                    text=st.session_state.get(draft_key, ""),
                     agent="agent",
                 ),
             )
@@ -381,8 +371,6 @@ def inbox_view() -> None:
             def _confirm_route() -> None:
                 result = confirm_routing(str(selected["ticket_id"]), agent="agent")
                 st.toast(result.message)
-                if result.ok:
-                    st.rerun()
 
             router_cols[0].button(
                 "Confirm",
@@ -421,9 +409,7 @@ def inbox_view() -> None:
                     team=get_queue_team_map().get(queue_value, "Support Desk"),
                     agent="agent",
                 )
-                _run_action_and_refresh(
-                    str(selected["ticket_id"]), lambda: result, advance=False
-                )
+                _run_action_and_refresh(str(selected["ticket_id"]), lambda: result)
 
             st.button(
                 "Save correction",
