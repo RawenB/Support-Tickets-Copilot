@@ -96,11 +96,7 @@ def _english_records() -> list[dict[str, Any]]:
         if csv_path.exists():
             frame = pd.read_csv(csv_path)
         else:
-            demo_path = PROJECT_ROOT / "data" / "demo_tickets.json"
-            if demo_path.exists():
-                frame = pd.read_json(demo_path)
-            else:
-                return []
+            return []
     if "language" in frame.columns:
         frame = frame[frame["language"].fillna("").str.lower() == "en"].copy()
     elif "text" in frame.columns:
@@ -160,7 +156,7 @@ def insert_ticket_event(
         "spike_id": spike_id,
         "status": "new",
         "confidence": confidence,
-        "customer_name": customer_name or "Demo customer",
+        "customer_name": customer_name or "Unknown customer",
         "customer_email": customer_email,
         "assigned_agent": "Unassigned",
         "created_at": created_value,

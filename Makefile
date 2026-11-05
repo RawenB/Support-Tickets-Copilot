@@ -8,7 +8,7 @@ setup:
 	$(PYTHON) -m pip install -e .
 
 data:
-	$(PYTHON) -m copilot.data.ingest
+	$(PYTHON) -m copilot.data.pipeline all
 
 train:
 	$(PYTHON) -m copilot.models.train

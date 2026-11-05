@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import logging
+import os
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -31,7 +31,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("support_copilot.ticket_service")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEMO_TICKETS_PATH = PROJECT_ROOT / "data" / "demo_tickets.json"
 ACTIVE_STATUSES = {"new", "in_review", "assigned"}
 PRIORITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3, "very_low": 4}
 
@@ -128,66 +127,18 @@ def get_priority_choices() -> list[str]:
     return [str(item).lower() for item in priorities]
 
 
-def _sqlite_has_tickets() -> bool:
-    """Check whether the SQLite ticket store already contains live rows."""
-    db_path = PROJECT_ROOT / "data" / "support_copilot.db"
-    if not db_path.exists():
-        return False
-    try:
-        return bool(list_tickets(limit=1))
-    except Exception:  # pragma: no cover
-        logger.exception("Unable to inspect SQLite ticket rows for fallback logic.")
-        return False
-
-
 def is_demo_mode() -> bool:
-    """Return whether the UI is currently running in known demo mode."""
-    if _sqlite_has_tickets():
-        return False
-    return not (PROJECT_ROOT / "data" / "splits" / "test.parquet").exists()
-
-
-def _load_demo_payload() -> list[dict[str, Any]]:
-    if not DEMO_TICKETS_PATH.exists():
-        return []
-    with DEMO_TICKETS_PATH.open("r", encoding="utf-8") as handle:
-        payload = json.load(handle)
-    return [
-        {
-            "ticket_id": str(item.get("id") or item.get("ticket_id") or "demo-000"),
-            "subject": str(item.get("subject") or "Untitled ticket"),
-            "body": str(item.get("body") or ""),
-            "queue": str(item.get("queue") or "general"),
-            "priority": str(item.get("priority") or "medium"),
-            "status": str(item.get("status") or "new"),
-            "confidence": float(item.get("confidence", 0.82)),
-            "customer_name": str(
-                item.get("customer") or item.get("customer_name") or "Unknown customer"
-            ),
-            "customer_email": str(
-                item.get("email") or item.get("customer_email") or "unknown@example.com"
-            ),
-            "assigned_agent": str(item.get("agent") or item.get("assigned_agent") or "Unassigned"),
-            "team": str(item.get("team") or "Support Desk"),
-            "created_at": str(item.get("created_at") or "2025-01-01T00:00:00Z"),
-        }
-        for item in payload
-    ]
+    """Return whether explicitly-labelled demo mode is enabled by the operator."""
+    return os.environ.get("COPILOT_DEMO_MODE", "").strip().lower() in {"1", "true", "yes"}
 
 
 def get_active_tickets(*, limit: int | None = None) -> list[dict[str, Any]]:
-    """Return the active inbox rows, preferring SQLite data when present."""
+    """Return the active inbox rows from SQLite; never invent fallback tickets."""
     try:
-        rows = list_tickets(limit=limit)
+        return list_tickets(limit=limit)
     except Exception:  # pragma: no cover
-        rows = []
-    if rows:
-        return rows
-    tickets = _load_demo_payload()
-    if limit is not None:
-        tickets = tickets[:limit]
-    logger.info("Using demo mode ticket data for Support Copilot UI.")
-    return tickets
+        logger.exception("Unable to read tickets from SQLite.")
+        return []
 
 
 def get_ticket_by_id(ticket_id: str) -> dict[str, Any] | None:

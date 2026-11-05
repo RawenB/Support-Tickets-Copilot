@@ -175,9 +175,8 @@ def initialize_database() -> None:
             """
         )
 
-        # Demo tickets are intentionally seeded by explicit scripts, not by the schema
-        # initializer. This keeps database initialization idempotent and allows the app
-        # UI to fall back to demo payloads without mutating the live ticket store.
+        # Rows are seeded only by explicit pipeline/stream scripts. Database
+        # initialization stays idempotent and never invents product data.
 
 
 def _review_threshold() -> float:

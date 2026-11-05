@@ -1,40 +1,47 @@
 stages:
   ingest:
-    cmd: python -m copilot.data.ingest
+    cmd: python -m copilot.data.pipeline ingest
     deps:
       - data/raw/customer-support-tickets.csv
-    params:
-      - params.yaml:
-          - seed
+      - src/copilot/data/pipeline.py
     outs:
       - data/interim/ingested.parquet
 
   clean:
-    cmd: python -m copilot.data.clean
+    cmd: python -m copilot.data.pipeline clean
     deps:
       - data/interim/ingested.parquet
+      - src/copilot/data/pipeline.py
+    params:
+      - params.yaml:
+          - language
     outs:
       - data/processed/cleaned.parquet
 
   dedupe:
-    cmd: python -m copilot.data.dedupe
+    cmd: python -m copilot.data.pipeline dedupe
     deps:
       - data/processed/cleaned.parquet
+      - src/copilot/data/pipeline.py
     outs:
       - data/processed/deduped.parquet
 
   split:
-    cmd: python -m copilot.data.split
+    cmd: python -m copilot.data.pipeline split
     deps:
       - data/processed/deduped.parquet
+      - src/copilot/data/pipeline.py
     params:
       - params.yaml:
           - seed
           - split
+          - min_queue_count
     outs:
       - data/splits/train.csv
       - data/splits/val.csv
       - data/splits/test.csv
+    metrics:
+      - reports/data_audit.json
 
   train_queue:
     cmd: python -m copilot.models.train --task queue

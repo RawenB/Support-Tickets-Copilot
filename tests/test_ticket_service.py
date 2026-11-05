@@ -14,7 +14,8 @@ from app.services.ticket_service import (
 from copilot.db.repository import upsert_ticket
 
 
-def test_service_returns_expected_fields() -> None:
+def test_service_returns_expected_fields(make_ticket) -> None:
+    make_ticket("SVC-1", subject="Live service ticket")
     tickets = get_active_tickets(limit=3)
     assert tickets
     first = tickets[0]
@@ -26,7 +27,7 @@ def test_demo_mode_flag_is_boolean() -> None:
     assert isinstance(is_demo_mode(), bool)
 
 
-def test_live_sqlite_rows_take_priority_over_demo_fallback() -> None:
+def test_live_sqlite_rows_are_used_and_demo_mode_is_off() -> None:
     ticket = {
         "ticket_id": "SIM-REAL-001",
         "subject": "Live queue update",
@@ -109,7 +110,8 @@ def test_related_tickets_stay_within_queue() -> None:
     assert [t["ticket_id"] for t in related] == ["3"]
 
 
-def test_dashboard_metrics_summarize_source() -> None:
+def test_dashboard_metrics_summarize_source(make_ticket) -> None:
+    make_ticket("SVC-2", subject="Dashboard ticket")
     metrics = get_dashboard_metrics()
     assert metrics["total"] >= 1
     assert metrics["open"] <= metrics["total"]

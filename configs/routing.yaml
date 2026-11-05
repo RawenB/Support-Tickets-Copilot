@@ -10,10 +10,14 @@ routing:
     - low
     - very_low
   queue_team_map:
-    technical: Product Engineering
-    billing: Billing Ops
-    general: Support Desk
-    sales: Sales Support
-    account_management: Customer Success
-    shipping: Fulfillment
-    returns: Returns Team
+    technical_support: Product Engineering
+    product_support: Product Support
+    customer_service: Customer Success
+    it_support: IT Operations
+    billing_and_payments: Billing Ops
+    returns_and_exchanges: Returns Team
+    service_outages_and_maintenance: Site Reliability
+    sales_and_pre_sales: Sales Support
+    human_resources: People Ops
+    general_inquiry: Support Desk
+    Other: Triage Review

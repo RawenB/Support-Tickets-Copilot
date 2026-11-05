@@ -1,0 +1,89 @@
+schema: '2.0'
+stages:
+  ingest:
+    cmd: python -m copilot.data.pipeline ingest
+    deps:
+    - path: data/raw/customer-support-tickets.csv
+      hash: md5
+      md5: cfa15f0fee690f744ac70dd6250fb5cf
+      size: 53316994
+    - path: src/copilot/data/pipeline.py
+      hash: md5
+      md5: f1c595f243b2059d2998311d18ccbf18
+      size: 10025
+    outs:
+    - path: data/interim/ingested.parquet
+      hash: md5
+      md5: 880cbbbe8b89bb7939b78ce2cf9fbe5c
+      size: 24624368
+  clean:
+    cmd: python -m copilot.data.pipeline clean
+    deps:
+    - path: data/interim/ingested.parquet
+      hash: md5
+      md5: 880cbbbe8b89bb7939b78ce2cf9fbe5c
+      size: 24624368
+    - path: src/copilot/data/pipeline.py
+      hash: md5
+      md5: f1c595f243b2059d2998311d18ccbf18
+      size: 10025
+    params:
+      params.yaml:
+        language: en
+    outs:
+    - path: data/processed/cleaned.parquet
+      hash: md5
+      md5: 6a289735d54ea7365078b1777d44392b
+      size: 13126653
+  dedupe:
+    cmd: python -m copilot.data.pipeline dedupe
+    deps:
+    - path: data/processed/cleaned.parquet
+      hash: md5
+      md5: 6a289735d54ea7365078b1777d44392b
+      size: 13126653
+    - path: src/copilot/data/pipeline.py
+      hash: md5
+      md5: f1c595f243b2059d2998311d18ccbf18
+      size: 10025
+    outs:
+    - path: data/processed/deduped.parquet
+      hash: md5
+      md5: 4747af042cf689e55b6e606631ffb5fd
+      size: 11294788
+  split:
+    cmd: python -m copilot.data.pipeline split
+    deps:
+    - path: data/processed/deduped.parquet
+      hash: md5
+      md5: 4747af042cf689e55b6e606631ffb5fd
+      size: 11294788
+    - path: src/copilot/data/pipeline.py
+      hash: md5
+      md5: f1c595f243b2059d2998311d18ccbf18
+      size: 10025
+    params:
+      params.yaml:
+        min_queue_count: 5
+        seed: 42
+        split:
+          train: 0.7
+          val: 0.15
+          test: 0.15
+    outs:
+    - path: data/splits/test.csv
+      hash: md5
+      md5: 1f0dc557204f4e7e1a92961117528fce
+      size: 4096651
+    - path: data/splits/train.csv
+      hash: md5
+      md5: bbc2dada0610596b6d4d7b50b1e230b3
+      size: 18940389
+    - path: data/splits/val.csv
+      hash: md5
+      md5: be4b2c299d9205718d7cee84304cf953
+      size: 4087191
+    - path: reports/data_audit.json
+      hash: md5
+      md5: 969779cbb8e24dafd712c3a432eac752
+      size: 1015
