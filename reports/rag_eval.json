@@ -1,0 +1,540 @@
+{
+  "generated_at": "2026-11-05T09:35:47.107293+00:00",
+  "data_file": "data/splits/test.csv",
+  "split": "test",
+  "sample_limit": 40,
+  "seed": 42,
+  "metrics": {
+    "n_tickets": 40,
+    "retrieval_top1_queue_match": 0.75,
+    "retrieval_top3_queue_match": 0.825,
+    "grounded_rate": 1.0,
+    "avg_latency_ms": 0.05,
+    "avg_answer_chars": 512.33,
+    "backend_counts": {
+      "extractive": 40
+    }
+  },
+  "rows": [
+    {
+      "ticket_id": "",
+      "expected_queue": "sales_and_pre_sales",
+      "source_ids": [
+        "FAQ-23",
+        "FAQ-19",
+        "FAQ-18"
+      ],
+      "grounded": true,
+      "coverage": 0.6047,
+      "backend": "extractive",
+      "latency_ms": 0.37
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "sales_and_pre_sales",
+      "source_ids": [
+        "FAQ-23",
+        "FAQ-24",
+        "FAQ-18"
+      ],
+      "grounded": true,
+      "coverage": 0.625,
+      "backend": "extractive",
+      "latency_ms": 0.04
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "product_support",
+      "source_ids": [
+        "FAQ-19",
+        "FAQ-18",
+        "FAQ-12"
+      ],
+      "grounded": true,
+      "coverage": 0.6522,
+      "backend": "extractive",
+      "latency_ms": 0.04
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "service_outages_and_maintenance",
+      "source_ids": [
+        "FAQ-16",
+        "FAQ-17",
+        "FAQ-07"
+      ],
+      "grounded": true,
+      "coverage": 0.6977,
+      "backend": "extractive",
+      "latency_ms": 0.03
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "product_support",
+      "source_ids": [
+        "FAQ-12",
+        "FAQ-13",
+        "FAQ-15"
+      ],
+      "grounded": true,
+      "coverage": 0.5957,
+      "backend": "extractive",
+      "latency_ms": 0.04
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "product_support",
+      "source_ids": [
+        "FAQ-13",
+        "FAQ-12",
+        "FAQ-19"
+      ],
+      "grounded": true,
+      "coverage": 0.6444,
+      "backend": "extractive",
+      "latency_ms": 0.04
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "it_support",
+      "source_ids": [
+        "FAQ-19",
+        "FAQ-18",
+        "FAQ-15"
+      ],
+      "grounded": true,
+      "coverage": 0.6818,
+      "backend": "extractive",
+      "latency_ms": 0.04
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "product_support",
+      "source_ids": [
+        "FAQ-13",
+        "FAQ-20",
+        "FAQ-11"
+      ],
+      "grounded": true,
+      "coverage": 0.6346,
+      "backend": "extractive",
+      "latency_ms": 0.05
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "product_support",
+      "source_ids": [
+        "FAQ-19",
+        "FAQ-18",
+        "FAQ-15"
+      ],
+      "grounded": true,
+      "coverage": 0.6383,
+      "backend": "extractive",
+      "latency_ms": 0.07
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "technical_support",
+      "source_ids": [
+        "FAQ-09",
+        "FAQ-16",
+        "FAQ-13"
+      ],
+      "grounded": true,
+      "coverage": 0.6739,
+      "backend": "extractive",
+      "latency_ms": 0.03
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "technical_support",
+      "source_ids": [
+        "FAQ-25",
+        "FAQ-10",
+        "FAQ-17"
+      ],
+      "grounded": true,
+      "coverage": 0.7451,
+      "backend": "extractive",
+      "latency_ms": 0.05
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "product_support",
+      "source_ids": [
+        "FAQ-13",
+        "FAQ-16",
+        "FAQ-09"
+      ],
+      "grounded": true,
+      "coverage": 0.7021,
+      "backend": "extractive",
+      "latency_ms": 0.05
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "technical_support",
+      "source_ids": [
+        "FAQ-01",
+        "FAQ-09",
+        "FAQ-02"
+      ],
+      "grounded": true,
+      "coverage": 0.6607,
+      "backend": "extractive",
+      "latency_ms": 0.06
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "technical_support",
+      "source_ids": [
+        "FAQ-09",
+        "FAQ-16",
+        "FAQ-10"
+      ],
+      "grounded": true,
+      "coverage": 0.6596,
+      "backend": "extractive",
+      "latency_ms": 0.07
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "customer_service",
+      "source_ids": [
+        "FAQ-15",
+        "FAQ-07",
+        "FAQ-25"
+      ],
+      "grounded": true,
+      "coverage": 0.5778,
+      "backend": "extractive",
+      "latency_ms": 0.04
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "customer_service",
+      "source_ids": [
+        "FAQ-15",
+        "FAQ-07",
+        "FAQ-10"
+      ],
+      "grounded": true,
+      "coverage": 0.6047,
+      "backend": "extractive",
+      "latency_ms": 0.03
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "service_outages_and_maintenance",
+      "source_ids": [
+        "FAQ-16",
+        "FAQ-17",
+        "FAQ-13"
+      ],
+      "grounded": true,
+      "coverage": 0.6977,
+      "backend": "extractive",
+      "latency_ms": 0.05
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "it_support",
+      "source_ids": [
+        "FAQ-18",
+        "FAQ-19",
+        "FAQ-02"
+      ],
+      "grounded": true,
+      "coverage": 0.6383,
+      "backend": "extractive",
+      "latency_ms": 0.04
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "billing_and_payments",
+      "source_ids": [
+        "FAQ-03",
+        "FAQ-08",
+        "FAQ-05"
+      ],
+      "grounded": true,
+      "coverage": 0.6458,
+      "backend": "extractive",
+      "latency_ms": 0.07
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "customer_service",
+      "source_ids": [
+        "FAQ-09",
+        "FAQ-16",
+        "FAQ-13"
+      ],
+      "grounded": true,
+      "coverage": 0.7045,
+      "backend": "extractive",
+      "latency_ms": 0.04
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "returns_and_exchanges",
+      "source_ids": [
+        "FAQ-21",
+        "FAQ-22",
+        "FAQ-20"
+      ],
+      "grounded": true,
+      "coverage": 0.575,
+      "backend": "extractive",
+      "latency_ms": 0.07
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "customer_service",
+      "source_ids": [
+        "FAQ-13",
+        "FAQ-20",
+        "FAQ-25"
+      ],
+      "grounded": true,
+      "coverage": 0.6471,
+      "backend": "extractive",
+      "latency_ms": 0.04
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "service_outages_and_maintenance",
+      "source_ids": [
+        "FAQ-16",
+        "FAQ-17",
+        "FAQ-09"
+      ],
+      "grounded": true,
+      "coverage": 0.6977,
+      "backend": "extractive",
+      "latency_ms": 0.05
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "technical_support",
+      "source_ids": [
+        "FAQ-13",
+        "FAQ-09",
+        "FAQ-16"
+      ],
+      "grounded": true,
+      "coverage": 0.7143,
+      "backend": "extractive",
+      "latency_ms": 0.05
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "technical_support",
+      "source_ids": [
+        "FAQ-19",
+        "FAQ-18",
+        "FAQ-02"
+      ],
+      "grounded": true,
+      "coverage": 0.6522,
+      "backend": "extractive",
+      "latency_ms": 0.06
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "it_support",
+      "source_ids": [
+        "FAQ-10",
+        "FAQ-09",
+        "FAQ-11"
+      ],
+      "grounded": true,
+      "coverage": 0.6538,
+      "backend": "extractive",
+      "latency_ms": 0.04
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "billing_and_payments",
+      "source_ids": [
+        "FAQ-03",
+        "FAQ-06",
+        "FAQ-08"
+      ],
+      "grounded": true,
+      "coverage": 0.6875,
+      "backend": "extractive",
+      "latency_ms": 0.06
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "technical_support",
+      "source_ids": [
+        "FAQ-09",
+        "FAQ-17",
+        "FAQ-16"
+      ],
+      "grounded": true,
+      "coverage": 0.7021,
+      "backend": "extractive",
+      "latency_ms": 0.04
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "technical_support",
+      "source_ids": [
+        "FAQ-01",
+        "FAQ-14",
+        "FAQ-15"
+      ],
+      "grounded": true,
+      "coverage": 0.6949,
+      "backend": "extractive",
+      "latency_ms": 0.05
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "returns_and_exchanges",
+      "source_ids": [
+        "FAQ-21",
+        "FAQ-22",
+        "FAQ-20"
+      ],
+      "grounded": true,
+      "coverage": 0.5476,
+      "backend": "extractive",
+      "latency_ms": 0.04
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "technical_support",
+      "source_ids": [
+        "FAQ-09",
+        "FAQ-13",
+        "FAQ-16"
+      ],
+      "grounded": true,
+      "coverage": 0.6481,
+      "backend": "extractive",
+      "latency_ms": 0.04
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "technical_support",
+      "source_ids": [
+        "FAQ-09",
+        "FAQ-14",
+        "FAQ-17"
+      ],
+      "grounded": true,
+      "coverage": 0.6724,
+      "backend": "extractive",
+      "latency_ms": 0.03
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "product_support",
+      "source_ids": [
+        "FAQ-19",
+        "FAQ-18",
+        "FAQ-17"
+      ],
+      "grounded": true,
+      "coverage": 0.7333,
+      "backend": "extractive",
+      "latency_ms": 0.03
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "it_support",
+      "source_ids": [
+        "FAQ-10",
+        "FAQ-19",
+        "FAQ-18"
+      ],
+      "grounded": true,
+      "coverage": 0.6739,
+      "backend": "extractive",
+      "latency_ms": 0.07
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "billing_and_payments",
+      "source_ids": [
+        "FAQ-06",
+        "FAQ-03",
+        "FAQ-08"
+      ],
+      "grounded": true,
+      "coverage": 0.6939,
+      "backend": "extractive",
+      "latency_ms": 0.03
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "product_support",
+      "source_ids": [
+        "FAQ-13",
+        "FAQ-09",
+        "FAQ-16"
+      ],
+      "grounded": true,
+      "coverage": 0.72,
+      "backend": "extractive",
+      "latency_ms": 0.04
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "product_support",
+      "source_ids": [
+        "FAQ-19",
+        "FAQ-18",
+        "FAQ-17"
+      ],
+      "grounded": true,
+      "coverage": 0.7556,
+      "backend": "extractive",
+      "latency_ms": 0.04
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "product_support",
+      "source_ids": [
+        "FAQ-13",
+        "FAQ-20",
+        "FAQ-11"
+      ],
+      "grounded": true,
+      "coverage": 0.6415,
+      "backend": "extractive",
+      "latency_ms": 0.04
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "returns_and_exchanges",
+      "source_ids": [
+        "FAQ-19",
+        "FAQ-18",
+        "FAQ-10"
+      ],
+      "grounded": true,
+      "coverage": 0.6522,
+      "backend": "extractive",
+      "latency_ms": 0.04
+    },
+    {
+      "ticket_id": "",
+      "expected_queue": "human_resources",
+      "source_ids": [
+        "FAQ-24",
+        "FAQ-19",
+        "FAQ-13"
+      ],
+      "grounded": true,
+      "coverage": 0.6383,
+      "backend": "extractive",
+      "latency_ms": 0.05
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "task": "priority",
+  "model_type": "tfidf_ensemble",
+  "model_path": "/Users/rawen/Documents/4ING/tickets copilot/models/priority_model/priority_model.joblib",
+  "mlflow_run_id": "9955cea65e6b4d16949c76ff4b7069ad",
+  "macro_f1": 0.7336442507358553,
+  "accuracy": 0.7469725940089229,
+  "n_test": 3138
+}

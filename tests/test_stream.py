@@ -24,7 +24,7 @@ def test_spike_injection_creates_cluster() -> None:
     cluster = create_spike_cluster(
         start_time=datetime.utcnow() - timedelta(minutes=3),
         count=5,
-        queue="technical",
+        queue="technical_support",
     )
     assert len(cluster) == 5
-    assert all(item["queue"] == "technical" for item in cluster)
+    assert all(item["queue"] == "technical_support" for item in cluster)

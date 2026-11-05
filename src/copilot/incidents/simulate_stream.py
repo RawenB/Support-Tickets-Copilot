@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
 import time
@@ -88,9 +89,9 @@ def _predict_ticket(text: str) -> tuple[str, str, float]:
 
 
 def _english_records() -> list[dict[str, Any]]:
-    parquet_path = PROJECT_ROOT / "data" / "splits" / "test.parquet"
-    if parquet_path.exists():
-        frame = pd.read_parquet(parquet_path)
+    split_path = PROJECT_ROOT / "data" / "splits" / "test.csv"
+    if split_path.exists():
+        frame = pd.read_csv(split_path)
     else:
         csv_path = PROJECT_ROOT / "data" / "raw" / "customer-support-tickets.csv"
         if csv_path.exists():
@@ -196,28 +197,27 @@ def create_spike_cluster(
         logger.warning("No real tickets are available to build a spike cluster.")
         return []
 
+    target_queue = str(queue).lower()
     prepared: list[tuple[dict[str, Any], str, str, float]] = []
-    for row in records:
+    sample_size = min(len(records), max(200, int(count) * 50))
+    for row in records[:sample_size]:
         text = f"{row.get('subject', '')} {row.get('body', '')}".strip()
         predicted_queue, predicted_priority, confidence = _predict_ticket(text)
         prepared.append((row, predicted_queue, predicted_priority, confidence))
+        if (
+            str(predicted_queue).lower() == target_queue
+            and sum(1 for item in prepared if str(item[1]).lower() == target_queue) >= count
+        ):
+            break
 
-    target_queue = str(queue).lower()
     candidates = [
         item for item in prepared if str(item[1]).lower() == target_queue
     ]
     if not candidates:
-        fallback_queue = next(
-            (item[1] for item in prepared if item[1] != UNCLASSIFIED_QUEUE),
-            None,
-        )
-        if fallback_queue is not None:
-            candidates = [item for item in prepared if item[1] == fallback_queue]
-        else:
-            candidates = [
-                (row, str(queue), priority, confidence)
-                for row, _predicted_queue, priority, confidence in prepared
-            ]
+        candidates = [
+            (row, target_queue, priority, confidence)
+            for row, _predicted_queue, priority, confidence in prepared
+        ]
 
     spike_id = f"SPIKE-{start.strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:6]}"
     cluster: list[dict[str, Any]] = []
@@ -249,6 +249,77 @@ def create_spike_cluster(
     return cluster
 
 
+def _write_stream_eval(inserted: list[dict[str, Any]]) -> dict[str, Any]:
+    from sklearn.metrics import accuracy_score, confusion_matrix, f1_score
+
+    labelled = [row for row in inserted if row.get("true_queue") and row.get("true_priority")]
+    if not labelled:
+        return {"n": 0}
+    true_queue = [str(row["true_queue"]) for row in labelled]
+    pred_queue = [str(row["queue"]) for row in labelled]
+    true_priority = [str(row["true_priority"]) for row in labelled]
+    pred_priority = [str(row["priority"]) for row in labelled]
+    labels = sorted(set(true_queue) | set(pred_queue))
+    payload = {
+        "n": int(len(labelled)),
+        "queue": {
+            "macro_f1": float(f1_score(true_queue, pred_queue, average="macro")),
+            "accuracy": float(accuracy_score(true_queue, pred_queue)),
+            "confusion_matrix": confusion_matrix(true_queue, pred_queue, labels=labels).tolist(),
+            "labels": labels,
+        },
+        "priority": {
+            "macro_f1": float(f1_score(true_priority, pred_priority, average="macro")),
+            "accuracy": float(accuracy_score(true_priority, pred_priority)),
+            "confusion_matrix": confusion_matrix(
+                true_priority, pred_priority, labels=sorted(set(true_priority) | set(pred_priority))
+            ).tolist(),
+            "labels": sorted(set(true_priority) | set(pred_priority)),
+        },
+    }
+    reports = PROJECT_ROOT / "reports"
+    reports.mkdir(parents=True, exist_ok=True)
+    (reports / "stream_eval.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return payload
+
+
+def _write_incident_stream(inserted: list[dict[str, Any]]) -> dict[str, Any]:
+    """Persist the replay as the DVC incident stream and summarize its shape."""
+    stream_path = PROJECT_ROOT / "data" / "interim" / "incident_stream.csv"
+    stream_path.parent.mkdir(parents=True, exist_ok=True)
+    columns = [
+        "ticket_id",
+        "subject",
+        "queue",
+        "priority",
+        "true_queue",
+        "true_priority",
+        "spike_id",
+        "confidence",
+        "customer_email",
+        "created_at",
+    ]
+    frame = pd.DataFrame(inserted)
+    for column in columns:
+        if column not in frame.columns:
+            frame[column] = None
+    frame[columns].to_csv(stream_path, index=False)
+    metrics = {
+        "n_events": int(len(frame)),
+        "n_spikes": int(frame["spike_id"].dropna().nunique()) if "spike_id" in frame else 0,
+        "queue_counts": frame["queue"].value_counts().to_dict() if "queue" in frame else {},
+        "priority_counts": frame["priority"].value_counts().to_dict()
+        if "priority" in frame
+        else {},
+    }
+    reports = PROJECT_ROOT / "reports"
+    reports.mkdir(parents=True, exist_ok=True)
+    (reports / "incident_stream_metrics.json").write_text(
+        json.dumps(metrics, indent=2), encoding="utf-8"
+    )
+    return metrics
+
+
 def simulate_stream(
     *, rate_seconds: float | None = None, limit: int | None = None
 ) -> list[dict[str, Any]]:
@@ -277,6 +348,9 @@ def simulate_stream(
             )
         )
         time.sleep(rate)
+    if limit is None:
+        _write_stream_eval(inserted)
+        _write_incident_stream(inserted)
     return inserted
 
 

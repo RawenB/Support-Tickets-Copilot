@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from collections import Counter
@@ -102,6 +103,14 @@ def _edit_distance(left: str, right: str) -> int:
     return previous[-1]
 
 
+def get_f1_gate() -> float:
+    """Return the configured promotion gate."""
+    try:
+        return float(_load_params_config().get("f1_gate", 0.70))
+    except (TypeError, ValueError):
+        return 0.70
+
+
 def get_review_threshold() -> float:
     config = _load_routing_config().get("routing", {})
     threshold = config.get("review_threshold")
@@ -154,6 +163,63 @@ def get_queue_team_map() -> dict[str, str]:
     config = _load_routing_config().get("routing", {})
     team_map = config.get("queue_team_map", {})
     return {str(key).lower(): str(value) for key, value in team_map.items()}
+
+
+def get_data_audit() -> dict[str, Any]:
+    """Read the latest data audit artifact."""
+    path = PROJECT_ROOT / "reports" / "data_audit.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        logger.exception("Unable to read data audit.")
+        return {}
+
+
+def get_drift_report() -> dict[str, Any]:
+    """Read the latest real drift artifact, if it exists."""
+    path = PROJECT_ROOT / "reports" / "drift_report.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        logger.exception("Unable to read drift report.")
+        return {}
+
+
+def get_model_registry_status() -> dict[str, Any]:
+    """Return champion metadata and real test metrics for both tasks."""
+    tasks: dict[str, Any] = {}
+    for task in ("queue", "priority"):
+        champion_path = PROJECT_ROOT / "models" / f"{task}_model" / "champion.json"
+        metrics_path = PROJECT_ROOT / "reports" / f"metrics_{task}.json"
+        champion: dict[str, Any] = {}
+        metrics: dict[str, Any] = {}
+        if champion_path.exists():
+            try:
+                champion = json.loads(champion_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                champion = {}
+        if metrics_path.exists():
+            try:
+                metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                metrics = {}
+        tasks[task] = {
+            "champion": champion,
+            "metrics": metrics or champion,
+            "alias": f"support-copilot-{task}:champion" if champion else "not registered",
+        }
+    return {"tasks": tasks}
+
+
+def get_incident_clusters(tickets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Cluster current tickets into real incident candidates."""
+    from copilot.incidents.cluster import cluster_events
+
+    return cluster_events(tickets)
 
 
 def get_recent_decisions(*, limit: int = 10) -> list[dict[str, Any]]:
@@ -254,30 +320,28 @@ def get_draft_for_ticket(ticket_id: str) -> str:
 
 
 def get_ticket_sources(ticket: dict[str, Any]) -> list[dict[str, Any]]:
-    """Return the knowledge-base passages supporting the current draft."""
+    """Return the real FAQ passages supporting the current draft."""
     latest = get_latest_draft(str(ticket.get("ticket_id", "")))
     if latest and latest.get("sources"):
         return latest["sources"]
-    queue = str(ticket.get("queue", "general")).lower()
-    return [
-        {
-            "id": f"KBASE-{queue.upper()}-1",
-            "score": 0.9,
-            "text": (
-                f"Support guidance for {queue} tickets: validate the account state, "
-                "confirm recent changes, and route to the correct team before "
-                "sending a response."
-            ),
-        },
-        {
-            "id": f"KBASE-{queue.upper()}-2",
-            "score": 0.8,
-            "text": (
-                "Review the full ticket context, recent policies, and any "
-                "customer-impacting incidents before closing the case."
-            ),
-        },
-    ]
+    try:
+        from copilot.rag import retriever as rag_retriever
+
+        return list(rag_retriever.retrieve_sources(ticket, limit=3))
+    except Exception:  # pragma: no cover
+        logger.exception("Unable to retrieve FAQ sources.")
+        return []
+
+
+def get_grounding_status(ticket: dict[str, Any]) -> dict[str, Any]:
+    """Check whether the latest draft is supported by its retrieved sources."""
+    latest = get_latest_draft(str(ticket.get("ticket_id", "")))
+    if not latest:
+        return {"grounded": False, "coverage": 0.0, "unsupported_sentences": [], "reason": "no_draft"}
+    sources = latest.get("sources") or get_ticket_sources(ticket)
+    from copilot.rag.grounding_check import grounding_check
+
+    return grounding_check(str(latest.get("text", "")), sources)
 
 
 def _safe_action_wrapper(action_name: str, operation: Any) -> ActionResult:
@@ -297,6 +361,10 @@ def save_draft_in_repo(
     text: str,
     source: str = "agent",
     sources: list[dict[str, Any]] | None = None,
+    backend: str | None = None,
+    model_name: str | None = None,
+    prompt_hash: str | None = None,
+    latency_ms: float | None = None,
 ) -> dict[str, Any]:
     """Repository helper to persist a new draft version."""
     return repo_save_draft(
@@ -305,6 +373,10 @@ def save_draft_in_repo(
         source=str(source),
         sources=sources or [],
         grounded=1,
+        backend=backend,
+        model_name=model_name,
+        prompt_hash=prompt_hash,
+        latency_ms=latency_ms,
     )
 
 
@@ -333,35 +405,31 @@ def save_draft(
     return _safe_action_wrapper("Save draft", _operation)
 
 
-def _build_draft(ticket: dict[str, Any], variant: int) -> tuple[str, str, list[dict[str, Any]]]:
-    """Return (text, source, sources) for a ticket; `variant` changes style and evidence order."""
+def _build_draft(
+    ticket: dict[str, Any], variant: int
+) -> tuple[str, str, list[dict[str, Any]], dict[str, Any]]:
+    """Return text, source, sources, and generation metadata for a ticket."""
     sources: list[dict[str, Any]] = []
     passages: list[str] = []
     try:
         from copilot.rag import retriever as rag_retriever
 
-        passages = list(rag_retriever.retrieve(ticket, limit=3))
-        sources = [
-            {"id": f"FAQ-{index + 1}", "score": round(0.9 - index * 0.05, 2), "text": passage}
-            for index, passage in enumerate(passages)
-        ]
+        sources = list(rag_retriever.retrieve_sources(ticket, limit=3))
+        passages = [str(source.get("text", "")) for source in sources]
     except Exception:
         logger.info("RAG retriever unavailable; using template fallback.")
 
     from copilot.rag import generator as rag_generator
 
-    text = rag_generator.generate_answer(ticket, passages=passages, variant=variant)
-    source = "rag" if passages else "template_fallback"
-    if not sources:
-        queue_name = str(ticket.get("queue", "general")).lower()
-        sources = [
-            {
-                "id": f"TEMPLATE-{queue_name.upper()}-1",
-                "score": 0.75,
-                "text": str(ticket.get("body") or "Customer reported this issue."),
-            }
-        ]
-    return text.strip(), source, sources
+    metadata = rag_generator.generate_answer_with_metadata(
+        ticket,
+        passages=passages,
+        sources=sources,
+        variant=variant,
+    )
+    text = str(metadata.get("text", "")).strip()
+    source = "rag" if sources else "template_fallback"
+    return text, source, sources, metadata
 
 
 def ensure_first_draft(ticket_id: str) -> dict[str, Any] | None:
@@ -373,8 +441,17 @@ def ensure_first_draft(ticket_id: str) -> dict[str, Any] | None:
     if ticket is None:
         return None
     try:
-        text, source, sources = _build_draft(ticket, variant=0)
-        return save_draft_in_repo(str(ticket_id), text=text, source=source, sources=sources)
+        text, source, sources, metadata = _build_draft(ticket, variant=0)
+        return save_draft_in_repo(
+            str(ticket_id),
+            text=text,
+            source=source,
+            sources=sources,
+            backend=metadata.get("backend"),
+            model_name=metadata.get("model_name"),
+            prompt_hash=metadata.get("prompt_hash"),
+            latency_ms=metadata.get("latency_ms"),
+        )
     except Exception:  # pragma: no cover
         logger.exception("Could not create the first draft for %s", ticket_id)
         return None
@@ -389,8 +466,17 @@ def regenerate_draft(ticket_id: str, *, agent: str = "agent") -> ActionResult:
             return ActionResult(False, "Ticket not found.", {"ticket_id": ticket_id})
         latest = get_latest_draft(str(ticket_id))
         variant = int(latest["version"]) if latest else 0
-        text, source, sources = _build_draft(ticket, variant=variant)
-        draft = save_draft_in_repo(str(ticket_id), text=text, source=source, sources=sources)
+        text, source, sources, metadata = _build_draft(ticket, variant=variant)
+        draft = save_draft_in_repo(
+            str(ticket_id),
+            text=text,
+            source=source,
+            sources=sources,
+            backend=metadata.get("backend"),
+            model_name=metadata.get("model_name"),
+            prompt_hash=metadata.get("prompt_hash"),
+            latency_ms=metadata.get("latency_ms"),
+        )
         update_ticket_fields(ticket_id, status="in_review")
         log_ticket_decision(ticket_id, action="regenerated", agent=agent)
         return ActionResult(

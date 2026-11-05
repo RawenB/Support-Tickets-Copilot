@@ -38,9 +38,13 @@ jobs:
                   params = yaml.safe_load(fh) or {}
               threshold = float(params.get('f1_gate', threshold))
 
-          reports = sorted(Path('reports').glob('*_metrics.json'))
-          if not reports:
-              raise SystemExit('No metrics report found in reports/ for model gate.')
+          reports = [
+              Path('reports/metrics_queue.json'),
+              Path('reports/metrics_priority.json'),
+          ]
+          missing = [str(path) for path in reports if not path.exists()]
+          if missing:
+              raise SystemExit('Missing real metrics report(s): ' + ', '.join(missing))
 
           failures = []
           for report_path in reports:

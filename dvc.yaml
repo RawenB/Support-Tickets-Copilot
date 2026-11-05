@@ -48,6 +48,9 @@ stages:
     deps:
       - data/splits/train.csv
       - data/splits/val.csv
+      - data/splits/test.csv
+      - src/copilot/models/train.py
+      - src/copilot/models/distilbert.py
       - configs/train_queue.yaml
     params:
       - params.yaml:
@@ -57,12 +60,16 @@ stages:
       - models/queue_model
     metrics:
       - reports/queue_metrics.json
+      - reports/metrics_queue.json
 
   train_priority:
     cmd: python -m copilot.models.train --task priority
     deps:
       - data/splits/train.csv
       - data/splits/val.csv
+      - data/splits/test.csv
+      - src/copilot/models/train.py
+      - src/copilot/models/distilbert.py
       - configs/train_priority.yaml
     params:
       - params.yaml:
@@ -72,12 +79,14 @@ stages:
       - models/priority_model
     metrics:
       - reports/priority_metrics.json
+      - reports/metrics_priority.json
 
   evaluate:
     cmd: python -m copilot.models.evaluate
     deps:
       - models/queue_model
       - models/priority_model
+      - data/splits/test.csv
     params:
       - params.yaml:
           - f1_gate
@@ -87,9 +96,24 @@ stages:
   build_faq_index:
     cmd: python -m copilot.rag.faq_index
     deps:
-      - data/faq/.gitkeep
+      - data/faq
+      - src/copilot/rag/faq_index.py
     outs:
       - data/faq/index.faiss
+      - data/faq/index_meta.json
+
+  rag_eval:
+    cmd: python -m copilot.rag.evaluate
+    deps:
+      - data/faq/index.faiss
+      - data/faq/index_meta.json
+      - data/splits/test.csv
+      - src/copilot/rag
+    params:
+      - params.yaml:
+          - seed
+    metrics:
+      - reports/rag_eval.json
 
   simulate_stream:
     cmd: python -m copilot.incidents.simulate_stream

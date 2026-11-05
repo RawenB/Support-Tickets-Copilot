@@ -1,0 +1,58 @@
+{
+  "generated_at": "2026-11-05T09:28:47.367736+00:00",
+  "n_events": 15,
+  "n_clusters": 1,
+  "n_baseline_alerts": 1,
+  "detected_spike_ids": [
+    "SPIKE-A"
+  ],
+  "labelled_spike_ids": [
+    "SPIKE-A"
+  ],
+  "spike_precision": 1.0,
+  "spike_recall": 1.0,
+  "clusters": [
+    {
+      "queue": "technical_support",
+      "count": 12,
+      "start": "2026-11-05T06:28:41.696601+00:00",
+      "end": "2026-11-05T06:50:41.696601+00:00",
+      "ticket_ids": [
+        "T0",
+        "T1",
+        "T2",
+        "T3",
+        "T4",
+        "T5",
+        "T6",
+        "T7",
+        "T8",
+        "T9"
+      ],
+      "spike_ids": [
+        "SPIKE-A"
+      ],
+      "high_priority": 5
+    }
+  ],
+  "baseline": [
+    {
+      "queue": "billing_and_payments",
+      "current_count": 2,
+      "baseline_mean": 1.0,
+      "baseline_std": 0.0,
+      "ratio": 2.0,
+      "z_score": 1.0,
+      "alert": true
+    },
+    {
+      "queue": "technical_support",
+      "current_count": 0,
+      "baseline_mean": 12.0,
+      "baseline_std": 0.0,
+      "ratio": 0.0,
+      "z_score": -12.0,
+      "alert": false
+    }
+  ]
+}

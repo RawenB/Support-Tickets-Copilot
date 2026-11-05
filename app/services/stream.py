@@ -15,7 +15,7 @@ def replay_stream(limit: int = 6) -> list[dict[str, Any]]:
     return simulate_stream(limit=limit)
 
 
-def trigger_spike(queue: str = "technical") -> list[dict[str, Any]]:
+def trigger_spike(queue: str = "technical_support") -> list[dict[str, Any]]:
     """Trigger a synthetic incident burst for admin testing."""
     start_time = datetime.now(timezone.utc) - timedelta(minutes=3)
     return create_spike_cluster(start_time=start_time, count=30, queue=queue)

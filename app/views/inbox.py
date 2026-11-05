@@ -15,6 +15,7 @@ from app.services.ticket_service import (
     filter_tickets,
     format_ticket_age,
     get_active_tickets,
+    get_grounding_status,
     get_priority_choices,
     get_queue_choices,
     get_queue_team_map,
@@ -260,9 +261,23 @@ def inbox_view() -> None:
             for source in sources:
                 source_card(source)
 
-        if confidence < confidence_threshold:
+        grounding = get_grounding_status(selected)
+        if not grounding.get("grounded"):
+            unsupported = grounding.get("unsupported_sentences") or []
+            detail = (
+                f" Unsupported: {unsupported[0][:140]}"
+                if unsupported
+                else f" Coverage: {grounding.get('coverage', 0):.0%}."
+            )
             alert_banner(
-                "Grounding warning: this draft falls below the confidence "
+                "Grounding warning: the draft may contain unsupported statements."
+                + detail
+                + " Review the sources before sending.",
+                tone="danger",
+            )
+        elif confidence < confidence_threshold:
+            alert_banner(
+                "Confidence warning: this draft falls below the review "
                 f"threshold ({confidence:.0%} < {confidence_threshold:.0%}). "
                 "Review the sources before sending.",
                 tone="danger",

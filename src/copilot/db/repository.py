@@ -79,6 +79,19 @@ def _ensure_ticket_columns(connection: sqlite3.Connection) -> None:
         connection.execute("ALTER TABLE tickets ADD COLUMN spike_id TEXT")
 
 
+def _ensure_draft_columns(connection: sqlite3.Connection) -> None:
+    """Add generation metadata columns to an older drafts table."""
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(drafts)").fetchall()}
+    for name, definition in (
+        ("backend", "TEXT"),
+        ("model_name", "TEXT"),
+        ("prompt_hash", "TEXT"),
+        ("latency_ms", "REAL"),
+    ):
+        if name not in columns:
+            connection.execute(f"ALTER TABLE drafts ADD COLUMN {name} {definition}")
+
+
 def initialize_database() -> None:
     """Create the SQLite schema used by the product UI and admin events."""
     with _connect() as connection:
@@ -142,10 +155,15 @@ def initialize_database() -> None:
                 source TEXT NOT NULL DEFAULT 'ai',
                 sources_json TEXT,
                 grounded INTEGER NOT NULL DEFAULT 1,
+                backend TEXT,
+                model_name TEXT,
+                prompt_hash TEXT,
+                latency_ms REAL,
                 created_at TEXT NOT NULL
             )
             """
         )
+        _ensure_draft_columns(connection)
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS corrections (
@@ -307,6 +325,10 @@ def save_draft(
     source: str = "ai",
     sources: list[dict[str, Any]] | None = None,
     grounded: int = 1,
+    backend: str | None = None,
+    model_name: str | None = None,
+    prompt_hash: str | None = None,
+    latency_ms: float | None = None,
 ) -> dict[str, Any]:
     """Persist a draft version for the ticket and auto-increment the version."""
     with _connect() as connection:
@@ -319,9 +341,10 @@ def save_draft(
         cursor = connection.execute(
             """
             INSERT INTO drafts (
-                ticket_id, version, text, source, sources_json, grounded, created_at
+                ticket_id, version, text, source, sources_json, grounded,
+                backend, model_name, prompt_hash, latency_ms, created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 ticket_id,
@@ -330,6 +353,10 @@ def save_draft(
                 source,
                 json.dumps(sources or [], ensure_ascii=False),
                 int(bool(grounded)),
+                backend,
+                model_name,
+                prompt_hash,
+                latency_ms,
                 created_at,
             ),
         )
@@ -341,6 +368,10 @@ def save_draft(
         "source": source,
         "sources": sources or [],
         "grounded": int(bool(grounded)),
+        "backend": backend,
+        "model_name": model_name,
+        "prompt_hash": prompt_hash,
+        "latency_ms": latency_ms,
         "created_at": created_at,
     }
 
@@ -416,6 +447,17 @@ def add_correction(
         "agent": agent,
         "created_at": created_at,
     }
+
+
+def list_corrections(*, limit: int | None = None) -> list[dict[str, Any]]:
+    """Return human routing corrections newest-first."""
+    initialize_database()
+    with _connect() as connection:
+        query = "SELECT * FROM corrections ORDER BY created_at DESC"
+        if limit:
+            query += f" LIMIT {int(limit)}"
+        rows = connection.execute(query).fetchall()
+    return [dict(row) for row in rows]
 
 
 def add_outcome(

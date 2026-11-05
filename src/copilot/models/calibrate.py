@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import joblib
+import numpy as np
 
 
 def calibrate(
@@ -14,7 +15,7 @@ def calibrate(
     task: str = "queue",
     threshold: float = 0.6,
 ) -> dict[str, Any]:
-    """Return a lightweight calibration summary with a usable routing threshold."""
+    """Return a calibration summary and a usable confidence threshold."""
     resolved_path = Path(model_path)
     if not resolved_path.exists():
         raise FileNotFoundError(f"Model artifact not found: {resolved_path}")
@@ -24,11 +25,12 @@ def calibrate(
         label_set = [str(label) for label in model.classes_]
     else:
         label_set = []
-
+    probabilities = getattr(model, "predict_proba", None)
     return {
         "task": task,
-        "threshold": float(threshold),
+        "threshold": float(np.clip(threshold, 0.0, 1.0)),
         "labels": label_set,
         "model_path": str(resolved_path),
-        "calibrated": True,
+        "supports_probabilities": callable(probabilities),
+        "calibrated": callable(probabilities),
     }

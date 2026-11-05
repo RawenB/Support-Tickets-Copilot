@@ -1,7 +1,12 @@
 {
   "task": "queue",
-  "macro_f1": 0.3333333333333333,
-  "val_size": 2,
-  "train_size": 8,
-  "test_size": 2
+  "split": "test",
+  "model_type": "tfidf_sgd_log",
+  "model_path": "/Users/rawen/Documents/4ING/tickets copilot/models/queue_model/queue_model.joblib",
+  "macro_f1": 0.7111971076095891,
+  "accuracy": 0.7109623964308477,
+  "n_test": 3138,
+  "val_macro_f1": 0.6974751289221249,
+  "val_accuracy": 0.6851497769279796,
+  "mlflow_run_id": "2871fa911b5b41b385d16cc8b0a0db8b"
 }

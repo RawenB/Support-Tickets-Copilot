@@ -1,0 +1,31 @@
+{
+  "generated_at": "2026-11-05T09:32:19.177910+00:00",
+  "source": "sqlite",
+  "n_reference": 14643,
+  "n_current": 12,
+  "dataset_drift": true,
+  "share_of_drifted_columns": 1.0,
+  "drift_by_columns": {
+    "body_length": {
+      "score": 1.431258,
+      "threshold": 0.1,
+      "drift_detected": true
+    },
+    "queue": {
+      "score": 0.832555,
+      "threshold": 0.1,
+      "drift_detected": true
+    },
+    "priority": {
+      "score": 0.314185,
+      "threshold": 0.1,
+      "drift_detected": true
+    },
+    "subject_length": {
+      "score": 0.689654,
+      "threshold": 0.1,
+      "drift_detected": true
+    }
+  },
+  "method": "evidently_data_drift_preset"
+}

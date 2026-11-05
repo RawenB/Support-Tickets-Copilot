@@ -1,0 +1,181 @@
+{
+  "embedder": "all-MiniLM-L6-v2",
+  "backend": "faiss",
+  "documents": [
+    {
+      "id": "FAQ-01",
+      "title": "Password reset loop",
+      "queue": "technical_support",
+      "text": "If a customer cannot sign in after a password reset, confirm that the reset link was used once, the new password meets policy, and the session was refreshed. Ask for the exact error text and the time of the attempt. Clear stale sessions and verify the account is not locked before escalating.",
+      "source": "data/faq/faq-01.md"
+    },
+    {
+      "id": "FAQ-02",
+      "title": "Account locked by security policy",
+      "queue": "technical_support",
+      "text": "When an account is locked, check recent failed sign-in attempts, impossible-travel alerts, and multi-factor authentication status. Do not bypass the security lock without identity verification. Confirm the customer can receive the recovery code before unlocking.",
+      "source": "data/faq/faq-02.md"
+    },
+    {
+      "id": "FAQ-03",
+      "title": "Duplicate billing charge",
+      "queue": "billing_and_payments",
+      "text": "For a duplicate charge, compare the invoice with payment-provider authorizations and retries. Confirm whether one authorization is pending rather than captured. If two captures exist, open a billing adjustment and tell the customer the expected credit timeline.",
+      "source": "data/faq/faq-03.md"
+    },
+    {
+      "id": "FAQ-04",
+      "title": "Refund not received",
+      "queue": "billing_and_payments",
+      "text": "Refunds can take several business days to appear after approval. Check the refund status in the billing system and share the provider reference. If the refund was rejected, explain the reason and the next action without promising an unsupported date.",
+      "source": "data/faq/faq-04.md"
+    },
+    {
+      "id": "FAQ-05",
+      "title": "Invoice amount mismatch",
+      "queue": "billing_and_payments",
+      "text": "When an invoice amount differs from the quote, compare plan tier, seats, discounts, taxes, and usage overages. Confirm whether a mid-cycle change caused proration. Send the line-item breakdown and correct the invoice if the mismatch is confirmed.",
+      "source": "data/faq/faq-05.md"
+    },
+    {
+      "id": "FAQ-06",
+      "title": "Subscription cancellation",
+      "queue": "billing_and_payments",
+      "text": "Confirm the account owner, the requested cancellation date, and any active contract term. Explain what happens to data, seats, and future invoices. Record the cancellation request before closing the ticket.",
+      "source": "data/faq/faq-06.md"
+    },
+    {
+      "id": "FAQ-07",
+      "title": "Plan upgrade proration",
+      "queue": "billing_and_payments",
+      "text": "For an upgrade, explain that proration depends on the billing cycle and the effective date. Check the preview invoice before confirming. If the customer needs a different effective date, schedule the change rather than forcing an immediate upgrade.",
+      "source": "data/faq/faq-07.md"
+    },
+    {
+      "id": "FAQ-08",
+      "title": "Update payment method",
+      "queue": "billing_and_payments",
+      "text": "Ask the customer to update the payment method from billing settings and confirm the next invoice date. Never request full card details in a ticket. If the update fails, capture the error and verify the billing account is active.",
+      "source": "data/faq/faq-08.md"
+    },
+    {
+      "id": "FAQ-09",
+      "title": "API requests timing out",
+      "queue": "technical_support",
+      "text": "For API timeouts, collect the endpoint, timestamp, status code, request ID, and whether retries succeed. Check the status page and recent latency alerts. Recommend exponential backoff and avoid duplicate writes while the issue is investigated.",
+      "source": "data/faq/faq-09.md"
+    },
+    {
+      "id": "FAQ-10",
+      "title": "VPN or network connectivity",
+      "queue": "it_support",
+      "text": "When a VPN fails, verify the client version, authentication method, and whether other users are affected. Ask for the connection error and a traceroute if policy allows. Check for active network incidents before changing the customer configuration.",
+      "source": "data/faq/faq-10.md"
+    },
+    {
+      "id": "FAQ-11",
+      "title": "Email delivery failure",
+      "queue": "it_support",
+      "text": "For missing email, check the recipient address, spam quarantine, and provider suppression list. Confirm whether the message was accepted by the mail provider. If delivery is delayed, share the message ID and avoid asking the customer to resend repeatedly.",
+      "source": "data/faq/faq-11.md"
+    },
+    {
+      "id": "FAQ-12",
+      "title": "Export data to CSV",
+      "queue": "product_support",
+      "text": "Data exports depend on the selected date range, filters, and account permissions. Confirm the export job completed and the file is not blocked by the browser. If the export is empty, verify the filters and the account's data retention window.",
+      "source": "data/faq/faq-12.md"
+    },
+    {
+      "id": "FAQ-13",
+      "title": "Dashboard loading slowly",
+      "queue": "product_support",
+      "text": "Slow dashboards can be caused by a wide date range, too many filters, or a large account. Ask for the dashboard name and the time of the slowdown. Recommend narrowing the range and check whether the account is near its data limit.",
+      "source": "data/faq/faq-13.md"
+    },
+    {
+      "id": "FAQ-14",
+      "title": "Single sign-on failure",
+      "queue": "technical_support",
+      "text": "For SSO failures, verify the identity provider, the configured ACS URL, certificate expiry, and the user's group assignment. Check whether the failure affects one user or the whole tenant. Do not disable SSO as a shortcut without security approval.",
+      "source": "data/faq/faq-14.md"
+    },
+    {
+      "id": "FAQ-15",
+      "title": "Access or permission request",
+      "queue": "customer_service",
+      "text": "Access changes require the account owner's approval and the correct role. Confirm the requested resource, the role, and the business reason. Record the approval before changing permissions, and verify the change with the user.",
+      "source": "data/faq/faq-15.md"
+    },
+    {
+      "id": "FAQ-16",
+      "title": "Service outage status",
+      "queue": "service_outages_and_maintenance",
+      "text": "When a service is unavailable, check the status page and active incident records before troubleshooting the individual account. Share the incident ID and the latest update. Avoid promising a resolution time that the incident team has not confirmed.",
+      "source": "data/faq/faq-16.md"
+    },
+    {
+      "id": "FAQ-17",
+      "title": "Incident communication update",
+      "queue": "service_outages_and_maintenance",
+      "text": "Incident updates should state what is affected, what the team is doing, and when the next update will be posted. Do not speculate about root cause. Keep the customer-facing wording consistent with the incident record.",
+      "source": "data/faq/faq-17.md"
+    },
+    {
+      "id": "FAQ-18",
+      "title": "Report a security incident",
+      "queue": "it_support",
+      "text": "Security reports require immediate escalation and careful evidence handling. Ask for the time, affected systems, and observed activity, but do not request credentials or sensitive data in the ticket. Preserve logs and follow the security response runbook.",
+      "source": "data/faq/faq-18.md"
+    },
+    {
+      "id": "FAQ-19",
+      "title": "Suspected data breach",
+      "queue": "it_support",
+      "text": "If a customer suspects a data breach, escalate to the security team immediately. Confirm the scope, affected accounts, and whether data was exposed. Do not delete logs or make public statements before the security team validates the report.",
+      "source": "data/faq/faq-19.md"
+    },
+    {
+      "id": "FAQ-20",
+      "title": "Shipping delay",
+      "queue": "returns_and_exchanges",
+      "text": "For a shipping delay, check the carrier scan history and the promised delivery window. Share the latest tracking event and open a carrier investigation if the package has not moved. Do not promise a new delivery date without carrier confirmation.",
+      "source": "data/faq/faq-20.md"
+    },
+    {
+      "id": "FAQ-21",
+      "title": "Return label request",
+      "queue": "returns_and_exchanges",
+      "text": "Return eligibility depends on the product, purchase date, and condition. Confirm the order and reason before issuing a label. Explain any restocking fee and the expected inspection timeline.",
+      "source": "data/faq/faq-21.md"
+    },
+    {
+      "id": "FAQ-22",
+      "title": "Damaged item exchange",
+      "queue": "returns_and_exchanges",
+      "text": "For a damaged item, request photos and the packaging condition. Verify the order and whether replacement stock is available. Offer a replacement or return according to policy and record the customer's choice.",
+      "source": "data/faq/faq-22.md"
+    },
+    {
+      "id": "FAQ-23",
+      "title": "Sales quote or pricing",
+      "queue": "sales_and_pre_sales",
+      "text": "Sales pricing depends on volume, contract length, and required services. Confirm the customer's requirements before sharing a quote. Do not invent discounts; route the request to the sales owner when approval is needed.",
+      "source": "data/faq/faq-23.md"
+    },
+    {
+      "id": "FAQ-24",
+      "title": "HR policy question",
+      "queue": "human_resources",
+      "text": "HR questions should be answered from the current policy document and routed to People Ops when interpretation is needed. Do not share another employee's information. Record the policy version used in the response.",
+      "source": "data/faq/faq-24.md"
+    },
+    {
+      "id": "FAQ-25",
+      "title": "General inquiry triage",
+      "queue": "general_inquiry",
+      "text": "If the request does not clearly match a queue, identify the customer's goal, product, and urgency. Ask one focused clarifying question and route to the closest real queue. Use Other only when no existing queue fits.",
+      "source": "data/faq/faq-25.md"
+    }
+  ]
+}

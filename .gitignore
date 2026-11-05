@@ -46,3 +46,9 @@ data/*.db-shm
 data/*.db-wal
 data/huggingface/
 *.joblib
+models/**/*.safetensors
+models/**/*.bin
+models/**/*.pt
+models/**/*.pth
+models/**/checkpoint-*/
+*.joblib

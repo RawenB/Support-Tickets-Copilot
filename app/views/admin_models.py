@@ -2,38 +2,39 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import Any
 
 import streamlit as st
 
 from app.services.stream import trigger_spike
+from app.services.ticket_service import (
+    get_f1_gate,
+    get_model_registry_status,
+    get_review_threshold,
+)
 from app.ui.components import kpi_row, page_header, section_title
 from app.ui.icons import material_ref
 
-REPORTS_DIR = Path("reports")
 
-
-def _load_metrics() -> dict[str, Any]:
-    for name in ("release.json", "metrics_summary.json", "queue_metrics.json"):
-        path = REPORTS_DIR / name
-        if path.exists():
-            try:
-                return json.loads(path.read_text(encoding="utf-8"))
-            except json.JSONDecodeError:
-                continue
-    return {}
+def _metric_value(metrics: dict[str, Any], key: str) -> float | None:
+    value = metrics.get(key)
+    return float(value) if isinstance(value, (int, float)) else None
 
 
 def admin_models_view() -> None:
-    """Show model metadata, operating thresholds, and versioning details."""
-    metrics = _load_metrics()
-    macro_f1 = metrics.get("macro_f1")
+    """Show real champion metadata, test metrics, and governance gates."""
+    status = get_model_registry_status()
+    tasks = status.get("tasks", {})
+    queue_task = tasks.get("queue", {})
+    priority_task = tasks.get("priority", {})
+    queue_metrics = queue_task.get("metrics", {})
+    priority_metrics = priority_task.get("metrics", {})
+    gate = get_f1_gate()
+    review_threshold = get_review_threshold()
 
     page_header(
         "Models & versions",
-        "Champion model, release quality gates, and incident simulation controls.",
+        "Champion models, real test metrics, and promotion gates.",
         eyebrow="Admin",
         icon="models",
     )
@@ -41,30 +42,38 @@ def admin_models_view() -> None:
     kpi_row(
         [
             {
-                "label": "Champion alias",
-                "value": "support-priority-v3",
-                "delta": "Production traffic",
-                "tone": "accent",
-                "icon": "models",
-            },
-            {
-                "label": "Version",
-                "value": "3.4.1",
-                "delta": "Latest promoted",
-                "tone": "default",
-                "icon": "description",
-            },
-            {
-                "label": "Macro F1",
-                "value": f"{float(macro_f1):.2f}" if isinstance(macro_f1, (int, float)) else "—",
-                "delta": "Primary quality metric",
+                "label": "Queue macro F1",
+                "value": (
+                    f"{value:.2f}"
+                    if (value := _metric_value(queue_metrics, "macro_f1")) is not None
+                    else "—"
+                ),
+                "delta": "Real test split",
                 "tone": "success",
                 "icon": "trend",
             },
             {
-                "label": "Confidence gate",
-                "value": "0.80",
-                "delta": "Routes to human review below",
+                "label": "Priority macro F1",
+                "value": (
+                    f"{value:.2f}"
+                    if (value := _metric_value(priority_metrics, "macro_f1")) is not None
+                    else "—"
+                ),
+                "delta": "Real test split",
+                "tone": "success",
+                "icon": "trend",
+            },
+            {
+                "label": "Champion alias",
+                "value": "priority:champion",
+                "delta": str(priority_task.get("alias", "not registered")),
+                "tone": "accent",
+                "icon": "models",
+            },
+            {
+                "label": "Quality gate",
+                "value": f"{gate:.2f}",
+                "delta": f"Review below {review_threshold:.0%} confidence",
                 "tone": "warning",
                 "icon": "shield",
             },
@@ -76,30 +85,43 @@ def admin_models_view() -> None:
 
     with left:
         with st.container(border=True):
-            section_title("Release summary", icon="description")
-            st.markdown(
-                "- Champion model: `support-priority-v3`\n"
-                "- Version: `3.4.1`\n"
-                "- Calibration: stable across the last 14 days\n"
-                "- Human review is required below the 0.80 confidence gate"
-            )
-            st.caption(
-                "See docs/MODEL_CARDS.md for the release rationale and quality gate."
-            )
+            section_title("Champion summary", icon="description")
+            if not queue_task and not priority_task:
+                st.caption("No champion metadata found. Train the real models first.")
+            for task_name, task in (("Queue", queue_task), ("Priority", priority_task)):
+                champion = task.get("champion", {})
+                if not champion:
+                    st.markdown(f"**{task_name}**: not trained")
+                    continue
+                st.markdown(
+                    f"**{task_name}**: `{champion.get('model_type', 'unknown')}` · "
+                    f"test macro F1 `{float(champion.get('macro_f1', 0)):.3f}` · "
+                    f"accuracy `{float(champion.get('accuracy', 0)):.3f}`"
+                )
+                st.caption(
+                    f"Run `{champion.get('mlflow_run_id', 'n/a')}` · "
+                    f"artifact `{champion.get('model_path', 'n/a')}`"
+                )
+            st.caption("See docs/MODEL_CARDS.md for the release rationale and limitations.")
 
         with st.container(border=True):
-            section_title("Latest evaluation artifact", icon="data")
-            if metrics:
-                st.json(metrics)
+            section_title("Latest evaluation artifacts", icon="data")
+            payload = {
+                task: task_data.get("metrics", {})
+                for task, task_data in tasks.items()
+                if task_data.get("metrics")
+            }
+            if payload:
+                st.json(payload)
             else:
-                st.caption("No evaluation artifact found in reports/.")
+                st.caption("No evaluation artifacts found in reports/.")
 
     with right:
         with st.container(border=True):
             section_title("Incident simulation", "Admin only", icon="spike")
             st.caption(
-                "Inject a synthetic ticket spike to validate incident detection "
-                "and the review queue under load."
+                "Inject a real-ticket spike into one queue to validate incident "
+                "detection and the review queue under load."
             )
             if st.button(
                 "Simulate technical spike",
@@ -107,13 +129,14 @@ def admin_models_view() -> None:
                 width="stretch",
                 icon=material_ref("spike"),
             ):
-                cluster = trigger_spike(queue="technical")
+                cluster = trigger_spike(queue="technical_support")
                 st.success(f"Injected {len(cluster)} tickets into the incident stream.")
 
         with st.container(border=True):
             section_title("Governance gates", icon="shield")
             st.markdown(
-                "- Macro F1 must clear the configured threshold before promotion\n"
-                "- Every run is logged to MLflow with git SHA and DVC data hash\n"
+                f"- Macro F1 must clear `{gate:.2f}` before promotion\n"
+                "- Promotion requires a registered MLflow champion alias\n"
+                "- Every run logs parameters, metrics, git SHA, and DVC data hash\n"
                 "- Agents remain the final decision-maker for all outbound replies"
             )

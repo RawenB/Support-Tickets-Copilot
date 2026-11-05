@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import pandas as pd
 import streamlit as st
 
 from app.services.ticket_service import (
     get_active_tickets,
+    get_incident_clusters,
     priority_distribution,
     queue_distribution,
 )
@@ -21,17 +20,6 @@ from app.ui.components import (
     section_title,
     status_pill,
 )
-
-
-def _cluster_queues(tickets: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
-    """Group tickets whose queue shows a possible incident signature."""
-    buckets: dict[str, list[dict[str, Any]]] = {}
-    for ticket in tickets:
-        if str(ticket.get("priority", "")).lower() in {"critical", "high"} or str(
-            ticket.get("status", "")
-        ).lower() == "escalated":
-            buckets.setdefault(str(ticket.get("queue", "general")).lower(), []).append(ticket)
-    return {queue: items for queue, items in buckets.items() if len(items) >= 2}
 
 
 @st.fragment(run_every="3s")
@@ -48,7 +36,7 @@ def incidents_view() -> None:
         for ticket in tickets
         if str(ticket.get("priority", "")).lower() in {"critical", "high"}
     ]
-    clusters = _cluster_queues(tickets)
+    clusters = get_incident_clusters(tickets)
 
     page_header(
         "Incidents",
@@ -92,7 +80,7 @@ def incidents_view() -> None:
 
     st.write("")
     if clusters:
-        names = ", ".join(queue.title() for queue in clusters)
+        names = ", ".join(cluster["queue"].title() for cluster in clusters)
         alert_banner(
             f"Possible incident cluster detected in: {names}. "
             "Review the escalated queue before replying individually.",
@@ -171,6 +159,7 @@ def incidents_view() -> None:
         with st.container(border=True):
             section_title("Detection rule", icon="shield")
             st.caption(
-                "A queue is flagged when it contains at least two critical, high, "
-                "or escalated tickets inside the live monitoring window."
+                "DBSCAN clusters tickets by queue and event time using the configured "
+                "eps and min_samples. The baseline compares the current window with "
+                "the previous seven windows."
             )

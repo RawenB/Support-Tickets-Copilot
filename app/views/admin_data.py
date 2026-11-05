@@ -7,6 +7,8 @@ import streamlit as st
 
 from app.services.ticket_service import (
     get_active_tickets,
+    get_data_audit,
+    get_drift_report,
     get_review_threshold,
     priority_distribution,
     queue_distribution,
@@ -21,19 +23,23 @@ from app.ui.components import (
 
 
 def admin_data_view() -> None:
-    """Display data drift, distribution, and dataset versioning context."""
+    """Display real data audit, distribution, and drift artifacts."""
     review_threshold = get_review_threshold()
     tickets = get_active_tickets()
+    audit = get_data_audit()
+    drift = get_drift_report()
     review_count = sum(
         1
         for ticket in tickets
         if float(ticket.get("confidence", review_threshold)) < review_threshold
     )
     review_rate = (review_count / len(tickets) * 100) if tickets else 0.0
+    drift_share = drift.get("share_of_drifted_columns")
+    drift_detected = bool(drift.get("dataset_drift"))
 
     page_header(
         "Data & drift",
-        "Dataset health, coverage, and drift signals for the support model.",
+        "Dataset health, coverage, and real drift signals for the support model.",
         eyebrow="Admin",
         icon="data",
     )
@@ -41,24 +47,24 @@ def admin_data_view() -> None:
     kpi_row(
         [
             {
-                "label": "Recorded tickets",
-                "value": len(tickets),
-                "delta": "Active dataset window",
+                "label": "Raw records",
+                "value": audit.get("raw_rows", "—"),
+                "delta": "English support tickets",
                 "tone": "accent",
                 "icon": "database",
             },
             {
-                "label": "Dataset version",
-                "value": "v3",
-                "delta": "customer-support-tickets",
+                "label": "Test rows",
+                "value": (audit.get("splits") or {}).get("test", "—"),
+                "delta": "Held-out evaluation split",
                 "tone": "default",
                 "icon": "description",
             },
             {
-                "label": "Drift score",
-                "value": "Low",
-                "delta": "Within configured bounds",
-                "tone": "success",
+                "label": "Drift share",
+                "value": f"{float(drift_share):.0%}" if isinstance(drift_share, (int, float)) else "—",
+                "delta": drift.get("method", "no drift report"),
+                "tone": "danger" if drift_detected else "success",
                 "icon": "trend",
             },
             {
@@ -97,18 +103,43 @@ def admin_data_view() -> None:
                     unsafe_allow_html=True,
                 )
 
+        with st.container(border=True):
+            section_title("Drift by feature", "Evidently data drift preset", icon="data")
+            columns = drift.get("drift_by_columns") or {}
+            if columns:
+                rows = [
+                    {
+                        "Feature": feature,
+                        "Score": details.get("score", details.get("psi", "—")),
+                        "Threshold": details.get("threshold", "—"),
+                        "Drift": "yes" if details.get("drift_detected") else "no",
+                    }
+                    for feature, details in columns.items()
+                ]
+                st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+            else:
+                st.caption("No drift artifact found. Run `python -m copilot.monitoring.drift`.")
+
     with right:
-        alert_banner(
-            "Drift report preview is available in the MLOps artifact store. "
-            "Review it before promoting a release.",
-            tone="warning",
-        )
+        if drift_detected:
+            alert_banner(
+                "Data drift detected. Review the affected features before promoting "
+                "a model or retraining.",
+                tone="danger",
+            )
+        else:
+            alert_banner(
+                "No dataset-level drift detected in the latest report.",
+                tone="success",
+            )
         st.write("")
         with st.container(border=True):
             section_title("Data governance", icon="shield")
             st.markdown(
+                f"- Raw rows: `{audit.get('raw_rows', 'n/a')}`\n"
+                f"- English rows: `{audit.get('english_rows', 'n/a')}`\n"
+                f"- Duplicate rows removed: `{audit.get('duplicate_rows', 'n/a')}`\n"
+                f"- Null rows removed: `{audit.get('null_rows', 'n/a')}`\n"
                 "- Data versioning is managed through DVC, not Git\n"
-                "- Splits are deterministic and recorded with the run\n"
-                "- Review low-confidence tickets before retraining\n"
-                "- Confirm dataset freshness before the next model release"
+                "- Splits are deterministic and recorded with the run"
             )
