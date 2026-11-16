@@ -88,7 +88,7 @@ def baseline(
         "train_size": int(len(X_train)),
         "val_size": int(len(X_val)),
     }
-    report_path = Path("reports") / f"{task}_baseline_metrics.json"
+    report_path = target_path.parent / f"{task}_baseline_metrics.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return payload

@@ -12,51 +12,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          fetch-depth: 0             # dvc metrics/params diff need the base branch
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-
-      - name: Install dependencies
+          python-version: '3.9'
+      - name: Install gate tooling
+        run: python -m pip install pyyaml dvc
+      - name: Enforce model quality gates
+        run: python scripts/check_model_gate.py | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Metric and parameter changes vs. main
+        if: github.event_name == 'pull_request'
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
-          python -m pip install -e .
-
-      - name: Enforce model quality gate
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          import yaml
-
-          threshold = 0.70
-          params_path = Path('params.yaml')
-          if params_path.exists():
-              with params_path.open('r', encoding='utf-8') as fh:
-                  params = yaml.safe_load(fh) or {}
-              threshold = float(params.get('f1_gate', threshold))
-
-          reports = [
-              Path('reports/metrics_queue.json'),
-              Path('reports/metrics_priority.json'),
-          ]
-          missing = [str(path) for path in reports if not path.exists()]
-          if missing:
-              raise SystemExit('Missing real metrics report(s): ' + ', '.join(missing))
-
-          failures = []
-          for report_path in reports:
-              with report_path.open('r', encoding='utf-8') as fh:
-                  payload = json.load(fh)
-
-              f1 = float(payload.get('macro_f1', payload.get('macro_f1_score', 0.0)))
-              if f1 < threshold:
-                  failures.append(f"{report_path.name}: macro_f1={f1:.4f} < threshold={threshold:.2f}")
-
-          if failures:
-              raise SystemExit('Model quality gate failed:\n' + '\n'.join(failures))
-
-          print(f'Model quality gate passed for {len(reports)} report(s): threshold={threshold:.2f}')
-          PY
+          {
+            echo "### Metrics vs. main"
+            dvc metrics diff origin/main --md --all || true
+            echo "### Params vs. main"
+            dvc params diff origin/main --md || true
+          } >> "$GITHUB_STEP_SUMMARY"

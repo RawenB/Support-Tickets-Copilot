@@ -5,11 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import joblib
 import numpy as np
+
+from copilot.models.artifacts import PROJECT_ROOT, load_model
 
 
 def _linear_model(model: Any) -> Any:
+    if hasattr(model, "components"):
+        model = model.components.get("tfidf_sgd", model)
     if hasattr(model, "named_steps"):
         classifier = model.named_steps.get("clf")
         if hasattr(classifier, "calibrated_classifiers_") and classifier.calibrated_classifiers_:
@@ -29,11 +32,13 @@ def explain(
     path = (
         Path(model_path)
         if model_path
-        else Path("models") / f"{task}_model" / f"{task}_model.joblib"
+        else PROJECT_ROOT / "models" / f"{task}_model" / f"{task}_model.joblib"
     )
     if not path.exists():
         raise FileNotFoundError(f"Model artifact not found: {path}")
-    model = joblib.load(path)
+    model = load_model(path)
+    if hasattr(model, "components"):
+        model = model.components.get("tfidf_sgd", model)
     vectorizer = model.named_steps.get("tfidf") if hasattr(model, "named_steps") else None
     classifier = _linear_model(model)
     if vectorizer is None or not hasattr(classifier, "coef_"):
@@ -50,7 +55,8 @@ def explain(
     if text:
         vector = vectorizer.transform([text]).toarray()[0]
         scores = coefficients @ vector
-        contributions = scores * vector
+        row = int(np.argmax(scores)) if coefficients.shape[0] > 1 else 0
+        contributions = coefficients[row] * vector
         order = np.argsort(np.abs(contributions))[::-1][:top_k]
         return {
             "task": task,

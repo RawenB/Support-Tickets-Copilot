@@ -1,9 +1,22 @@
-"""Promote validated models to the production registry with governance checks."""
+"""Champion / challenger promotion in the MLflow model registry.
+
+Training registers every new model as ``@challenger``. Promotion moves ``@champion`` to the
+challenger only if it
+
+1. clears the absolute quality gates in ``params.yaml`` (``f1_gate`` and
+   ``promotion.novel_f1_gate``), and
+2. does not regress against the current champion by more than
+   ``promotion.max_regression`` macro F1.
+
+The replaced champion keeps the ``@previous_champion`` alias, so ``--rollback`` is one call.
+Every decision is written to ``reports/promotion_<task>.json`` and tagged on the version.
+"""
 
 from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -14,9 +27,32 @@ from copilot.utils.mlflow_utils import setup_mlflow
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
+def _params() -> dict[str, Any]:
+    return yaml.safe_load((PROJECT_ROOT / "params.yaml").read_text(encoding="utf-8")) or {}
+
+
 def _gate() -> float:
-    params = yaml.safe_load((PROJECT_ROOT / "params.yaml").read_text(encoding="utf-8")) or {}
-    return float(params.get("f1_gate", 0.70))
+    return float(_params().get("f1_gate", 0.70))
+
+
+def _version_scores(client: Any, version: Any) -> dict[str, Any]:
+    run = client.get_run(version.run_id)
+    metrics = run.data.metrics
+    return {
+        "version": str(version.version),
+        "run_id": version.run_id,
+        "macro_f1": float(metrics.get("test_macro_f1", metrics.get("macro_f1", 0.0))),
+        "novel_macro_f1": metrics.get("test_novel_macro_f1"),
+        "data_fingerprint": run.data.tags.get("data_fingerprint"),
+        "model_type": run.data.tags.get("champion_candidate") or run.data.params.get("model_type"),
+    }
+
+
+def _alias(client: Any, name: str, alias: str) -> Any | None:
+    try:
+        return client.get_model_version_by_alias(name, alias)
+    except Exception:
+        return None
 
 
 def promote_model(
@@ -25,86 +61,107 @@ def promote_model(
     run_id: str | None = None,
     alias: str = "champion",
     f1_gate: float | None = None,
+    force: bool = False,
 ) -> dict[str, Any]:
-    """Promote the best run that passes the F1 gate to the requested alias."""
-    metrics_path = PROJECT_ROOT / "reports" / f"metrics_{task}.json"
-    if not metrics_path.exists():
-        raise FileNotFoundError(f"Metrics file missing: {metrics_path}")
-    metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    """Promote the challenger (or the version created from ``run_id``) if it passes the gates."""
+    params = _params()
+    promotion = params.get("promotion", {})
     gate = _gate() if f1_gate is None else float(f1_gate)
-    if float(metrics.get("macro_f1", 0.0)) < gate:
-        raise ValueError(
-            f"{task} champion macro_f1={metrics.get('macro_f1')} is below gate {gate}"
-        )
+    novel_gate = float(promotion.get("novel_f1_gate", 0.0))
+    max_regression = float(promotion.get("max_regression", 0.0))
 
-    selected_run = run_id or metrics.get("mlflow_run_id")
-    if not selected_run:
-        raise ValueError(f"{task} metrics do not contain an mlflow_run_id")
     client = setup_mlflow(f"support-copilot-{task}")
     name = f"support-copilot-{task}"
-    try:
-        client.create_registered_model(name)
-    except Exception:
-        pass
-    source_run = selected_run
-    try:
-        version = client.create_model_version(
-            name=name,
-            source=f"runs:/{selected_run}/model",
-            run_id=selected_run,
-            description=f"Promoted {task} model ({metrics.get('model_type')}).",
-        )
-    except Exception:
-        if metrics.get("model_type") != "distilbert":
-            raise
-        import mlflow
-        from transformers import AutoModelForSequenceClassification, AutoTokenizer
+    if run_id:
+        matches = client.search_model_versions(f"name='{name}' and run_id='{run_id}'")
+        if not matches:
+            raise ValueError(f"No registered version of {name} comes from run {run_id}")
+        candidate = max(matches, key=lambda v: int(v.version))
+    else:
+        candidate = _alias(client, name, "challenger")
+        if candidate is None:
+            raise ValueError(f"{name} has no @challenger. Train a model first.")
+    challenger = _version_scores(client, candidate)
+    current = _alias(client, name, alias)
+    incumbent = _version_scores(client, current) if current is not None else None
 
-        model_path_value = metrics.get("model_path")
-        if not model_path_value:
-            champion_path = PROJECT_ROOT / "models" / f"{task}_model" / "champion.json"
-            if champion_path.exists():
-                champion = json.loads(champion_path.read_text(encoding="utf-8"))
-                model_path_value = champion.get("model_path")
-        model_path = Path(str(model_path_value or ""))
-        model_dir = model_path.parent / "distilbert"
-        if not model_dir.exists():
-            raise
-        with mlflow.start_run(run_name=f"{task}-promotion") as fallback_run:
-            mlflow.transformers.log_model(
-                transformers_model={
-                    "model": AutoModelForSequenceClassification.from_pretrained(model_dir),
-                    "tokenizer": AutoTokenizer.from_pretrained(model_dir),
-                },
-                artifact_path="model",
-                task="text-classification",
-            )
-            source_run = fallback_run.info.run_id
-        version = client.create_model_version(
-            name=name,
-            source=f"runs:/{source_run}/model",
-            run_id=source_run,
-            description=f"Promoted {task} DistilBERT model.",
+    reasons: list[str] = []
+    if challenger["macro_f1"] < gate:
+        reasons.append(f"macro_f1 {challenger['macro_f1']:.4f} < gate {gate:.2f}")
+    novel = challenger["novel_macro_f1"]
+    if novel_gate and (novel is None or float(novel) < novel_gate):
+        reasons.append(f"novel_macro_f1 {novel} < novel gate {novel_gate:.2f}")
+    if incumbent and incumbent["version"] == challenger["version"]:
+        reasons.append(f"version {challenger['version']} is already @{alias}")
+    elif incumbent and challenger["macro_f1"] < incumbent["macro_f1"] - max_regression:
+        reasons.append(
+            f"regression vs @{alias} v{incumbent['version']}: "
+            f"{challenger['macro_f1']:.4f} < {incumbent['macro_f1']:.4f} - {max_regression}"
         )
-    client.set_registered_model_alias(name, alias, version.version)
-    return {
+    same_data = incumbent is None or incumbent["data_fingerprint"] == challenger["data_fingerprint"]
+
+    promoted = force or not reasons
+    if promoted:
+        if incumbent and incumbent["version"] != challenger["version"]:
+            client.set_registered_model_alias(name, "previous_champion", incumbent["version"])
+        client.set_registered_model_alias(name, alias, challenger["version"])
+    decision = {
         "task": task,
         "model_name": name,
-        "version": str(version.version),
+        "decided_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "promoted": promoted,
+        "forced": bool(force and reasons),
+        "reasons": reasons,
         "alias": alias,
-        "run_id": source_run,
-        "macro_f1": float(metrics["macro_f1"]),
+        "version": challenger["version"],
+        "run_id": challenger["run_id"],
+        "macro_f1": challenger["macro_f1"],
+        "novel_macro_f1": challenger["novel_macro_f1"],
         "gate": gate,
+        "novel_gate": novel_gate,
+        "max_regression": max_regression,
+        "challenger": challenger,
+        "incumbent": incumbent,
+        "same_test_data_as_incumbent": same_data,
     }
+    client.set_model_version_tag(name, challenger["version"], "promotion_decision",
+                                 "promoted" if promoted else "rejected: " + "; ".join(reasons))
+    reports = PROJECT_ROOT / "reports"
+    reports.mkdir(parents=True, exist_ok=True)
+    (reports / f"promotion_{task}.json").write_text(json.dumps(decision, indent=2), encoding="utf-8")
+    return decision
+
+
+def rollback(task: str, alias: str = "champion") -> dict[str, Any]:
+    """Point ``@champion`` back at ``@previous_champion``."""
+    client = setup_mlflow(f"support-copilot-{task}")
+    name = f"support-copilot-{task}"
+    previous = _alias(client, name, "previous_champion")
+    if previous is None:
+        raise ValueError(f"{name} has no @previous_champion to roll back to")
+    current = _alias(client, name, alias)
+    client.set_registered_model_alias(name, alias, previous.version)
+    if current is not None:
+        client.set_registered_model_alias(name, "previous_champion", current.version)
+    return {"task": task, "alias": alias, "version": str(previous.version),
+            "replaced": str(current.version) if current else None}
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--task", choices=["queue", "priority"], required=True)
     parser.add_argument("--run-id", default=None)
     parser.add_argument("--alias", default="champion")
+    parser.add_argument("--force", action="store_true", help="promote even if a gate fails (recorded)")
+    parser.add_argument("--rollback", action="store_true")
     args = parser.parse_args()
-    print(json.dumps(promote_model(args.task, run_id=args.run_id, alias=args.alias), indent=2))
+    if args.rollback:
+        print(json.dumps(rollback(args.task, args.alias), indent=2))
+        return
+    decision = promote_model(args.task, run_id=args.run_id, alias=args.alias, force=args.force)
+    print(json.dumps(decision, indent=2))
+    if not decision["promoted"]:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

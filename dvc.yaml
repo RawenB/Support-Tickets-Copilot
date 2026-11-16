@@ -12,9 +12,9 @@ stages:
     deps:
       - data/interim/ingested.parquet
       - src/copilot/data/pipeline.py
+      - src/copilot/data/text.py
     params:
-      - params.yaml:
-          - language
+      - language
     outs:
       - data/processed/cleaned.parquet
 
@@ -32,54 +32,68 @@ stages:
       - data/processed/deduped.parquet
       - src/copilot/data/pipeline.py
     params:
-      - params.yaml:
-          - seed
-          - split
-          - min_queue_count
+      - seed
+      - split
+      - min_queue_count
     outs:
       - data/splits/train.csv
       - data/splits/val.csv
       - data/splits/test.csv
     metrics:
-      - reports/data_audit.json
+      - reports/data_audit.json:
+          cache: false
 
-  train_queue:
-    cmd: python -m copilot.models.train --task queue
+  validate:
+    cmd: python -m copilot.data.validate
     deps:
       - data/splits/train.csv
       - data/splits/val.csv
       - data/splits/test.csv
-      - src/copilot/models/train.py
-      - src/copilot/models/distilbert.py
-      - configs/train_queue.yaml
+      - src/copilot/data/validate.py
     params:
-      - params.yaml:
-          - seed
-          - train
-    outs:
-      - models/queue_model
+      - language
+      - min_queue_count
     metrics:
-      - reports/queue_metrics.json
-      - reports/metrics_queue.json
+      - reports/data_validation.json:
+          cache: false
 
-  train_priority:
-    cmd: python -m copilot.models.train --task priority
-    deps:
-      - data/splits/train.csv
-      - data/splits/val.csv
-      - data/splits/test.csv
-      - src/copilot/models/train.py
-      - src/copilot/models/distilbert.py
-      - configs/train_priority.yaml
-    params:
-      - params.yaml:
-          - seed
-          - train
-    outs:
-      - models/priority_model
-    metrics:
-      - reports/priority_metrics.json
-      - reports/metrics_priority.json
+  train:
+    foreach: [queue, priority]
+    do:
+      cmd: python -m copilot.models.train --task ${item}
+      deps:
+        - data/splits/train.csv
+        - data/splits/val.csv
+        - data/splits/test.csv
+        - reports/data_validation.json
+        - src/copilot/data/text.py
+        - src/copilot/models/train.py
+        - src/copilot/models/transformer.py
+        - src/copilot/models/knn.py
+        - src/copilot/models/blend.py
+        - src/copilot/models/metrics.py
+      params:
+        - seed
+        - eval
+        - configs/train_${item}.yaml:
+            - train
+      outs:
+        - models/${item}_model
+      metrics:
+        - reports/metrics_${item}.json:
+            cache: false
+      plots:
+        - reports/per_class_${item}.json:
+            cache: false
+        - reports/plots/confusion_${item}.json:
+            cache: false
+            template: confusion
+            x: predicted
+            y: actual
+        - reports/plots/training_curve_${item}.json:
+            cache: false
+            x: epoch
+            y: val_macro_f1
 
   evaluate:
     cmd: python -m copilot.models.evaluate
@@ -87,11 +101,13 @@ stages:
       - models/queue_model
       - models/priority_model
       - data/splits/test.csv
+      - src/copilot/models/evaluate.py
     params:
-      - params.yaml:
-          - f1_gate
+      - f1_gate
+      - eval
     metrics:
-      - reports/metrics_summary.json
+      - reports/metrics_summary.json:
+          cache: false
 
   build_faq_index:
     cmd: python -m copilot.rag.faq_index
@@ -99,14 +115,12 @@ stages:
       - data/faq
       - src/copilot/rag/faq_index.py
     outs:
-      - data/faq/index.faiss
-      - data/faq/index_meta.json
+      - data/faq_index
 
   rag_eval:
     cmd: python -m copilot.rag.evaluate
     deps:
-      - data/faq/index.faiss
-      - data/faq/index_meta.json
+      - data/faq_index
       - data/splits/test.csv
       - src/copilot/rag
     params:

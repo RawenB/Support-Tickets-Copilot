@@ -1,9 +1,34 @@
+# Hyper-parameters for the queue classifier. Tracked by DVC as params, so
+# `dvc params diff` shows exactly what changed between two experiments.
 train:
   task: queue
-  model_name: distilbert-base-uncased
-  learning_rate: 0.00002
-  epochs: 2
-  batch_size: 32
-  max_length: 128
-  class_weights: true
   output_dir: models/queue_model
+  # Candidates compete on validation macro F1; the test split is only used for the winner.
+  # "transformer" can be added back for experiments: fine-tuned roberta-base reached only
+  # 0.33 val macro F1 on queue (MLflow run b079faa8...), so it is off by default.
+  candidates: [tfidf_sgd, knn_char, knn_word, knn_embedding, ensemble]
+  # After selection, memory members are refit on train+val (ensemble weights stay val-tuned).
+  refit_memory_on_train_val: true
+  tfidf:
+    ngram_max: 3
+    min_df: 1
+    max_features: 500000
+    alpha: 1.0e-6
+  knn:
+    char: {k: 15, power: 10}
+    word: {k: 15, power: 4}
+    embedding: {k: 5, power: 10, embedder: all-MiniLM-L6-v2}
+  ensemble:
+    members: [tfidf_sgd, knn_char, knn_word, knn_embedding]
+    grid_step: 0.1
+  transformer:
+    model_name: roberta-base
+    epochs: 4
+    batch_size: 16
+    learning_rate: 3.0e-5
+    weight_decay: 0.01
+    warmup_ratio: 0.06
+    max_length: 256
+    label_smoothing: 0.05
+    class_weight_power: 0.0
+    patience: 2

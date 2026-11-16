@@ -1,0 +1,40 @@
+{
+  "source": "data/raw/customer-support-tickets.csv",
+  "raw_rows": 61765,
+  "english_rows": 28260,
+  "duplicate_rows": 4514,
+  "null_rows": 5301,
+  "queue_counts": {
+    "technical_support": 4800,
+    "product_support": 3100,
+    "customer_service": 2499,
+    "it_support": 1983,
+    "billing_and_payments": 1694,
+    "returns_and_exchanges": 821,
+    "service_outages_and_maintenance": 656,
+    "sales_and_pre_sales": 507,
+    "human_resources": 323,
+    "general_inquiry": 239
+  },
+  "priority_counts": {
+    "medium": 6794,
+    "high": 6421,
+    "low": 3407
+  },
+  "cleaning_steps": [
+    "read raw CSV",
+    "filter language to English",
+    "normalize subject/body whitespace",
+    "normalize queue names",
+    "normalize priority labels",
+    "drop rows with a blank body or label (a blank subject is allowed)",
+    "deduplicate exact normalised ticket text",
+    "merge queues with fewer than 5 train rows into Other",
+    "stratified group-aware 70/15/15 split"
+  ],
+  "splits": {
+    "train": 16622,
+    "val": 3562,
+    "test": 3562
+  }
+}

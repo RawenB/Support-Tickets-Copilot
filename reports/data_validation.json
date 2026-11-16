@@ -1,0 +1,152 @@
+{
+  "passed": true,
+  "n_checks": 27,
+  "n_failed": 0,
+  "rows": {
+    "train": 16622,
+    "val": 3562,
+    "test": 3562
+  },
+  "n_queues": 10,
+  "n_priorities": 3,
+  "blank_subject_share": 0.1171,
+  "train_tokens_mean": 61.19,
+  "train_tokens_p95": 110.0,
+  "checks": [
+    {
+      "check": "train: required columns",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "train: body never blank",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "train: labels never blank",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "train: priority on documented scale",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "train: single language",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "train: no exact duplicate tickets",
+      "passed": true,
+      "detail": 0
+    },
+    {
+      "check": "val: required columns",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "val: body never blank",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "val: labels never blank",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "val: priority on documented scale",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "val: single language",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "val: no exact duplicate tickets",
+      "passed": true,
+      "detail": 0
+    },
+    {
+      "check": "test: required columns",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "test: body never blank",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "test: labels never blank",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "test: priority on documented scale",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "test: single language",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "test: no exact duplicate tickets",
+      "passed": true,
+      "detail": 0
+    },
+    {
+      "check": "no exact leakage train/val",
+      "passed": true,
+      "detail": 0
+    },
+    {
+      "check": "no exact leakage train/test",
+      "passed": true,
+      "detail": 0
+    },
+    {
+      "check": "no exact leakage val/test",
+      "passed": true,
+      "detail": 0
+    },
+    {
+      "check": "every train queue has >= 5 rows",
+      "passed": true,
+      "detail": {}
+    },
+    {
+      "check": "val: no queue unseen in train",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "test: no queue unseen in train",
+      "passed": true,
+      "detail": []
+    },
+    {
+      "check": "train: size ratio ~0.7",
+      "passed": true,
+      "detail": 0.7
+    },
+    {
+      "check": "val: size ratio ~0.15",
+      "passed": true,
+      "detail": 0.15
+    },
+    {
+      "check": "test: size ratio ~0.15",
+      "passed": true,
+      "detail": 0.15
+    }
+  ]
+}

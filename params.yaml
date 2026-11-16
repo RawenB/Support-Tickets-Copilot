@@ -7,14 +7,14 @@ split:
   train: 0.70
   val: 0.15
   test: 0.15
-near_duplicate_threshold: 0.92
-train:
-  model_name: distilbert-base-uncased
-  learning_rate: 2e-5
-  epochs: 3
-  batch_size: 16
-  max_length: 256
-  class_weights: true
+# Model hyper-parameters live in configs/train_<task>.yaml (also tracked by DVC).
+eval:
+  # Test tickets whose closest train/val ticket has TF-IDF cosine below this are
+  # reported separately as "novel" (see copilot.models.metrics).
+  novelty_threshold: 0.6
+promotion:
+  novel_f1_gate: 0.40      # a champion must also work on never-seen tickets
+  max_regression: 0.005    # challenger may not lose more than this vs. the champion
 rag:
   embedder: all-MiniLM-L6-v2
   k: 4

@@ -5,8 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import joblib
 import numpy as np
+
+from copilot.models.artifacts import load_model
 
 
 def calibrate(
@@ -20,7 +21,7 @@ def calibrate(
     if not resolved_path.exists():
         raise FileNotFoundError(f"Model artifact not found: {resolved_path}")
 
-    model = joblib.load(resolved_path)
+    model = load_model(resolved_path)
     if hasattr(model, "classes_"):
         label_set = [str(label) for label in model.classes_]
     else:

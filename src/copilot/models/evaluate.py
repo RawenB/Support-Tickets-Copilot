@@ -7,9 +7,12 @@ import json
 from pathlib import Path
 from typing import Any
 
-import joblib
 import pandas as pd
-from sklearn.metrics import accuracy_score, f1_score
+import yaml
+
+from copilot.data.text import frame_texts
+from copilot.models.artifacts import load_model
+from copilot.models.metrics import classification_metrics, novelty_scores
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
@@ -17,15 +20,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 def _prepare_frame(frame: pd.DataFrame, task: str) -> pd.DataFrame:
     if task not in frame.columns:
         raise ValueError(f"Task column '{task}' not found in evaluation data.")
-    text_columns = [column for column in ("subject", "body", "text") if column in frame.columns]
-    if not text_columns:
-        raise ValueError("Evaluation data requires subject/body/text columns.")
     frame = frame.copy()
-    frame["text"] = (
-        frame[text_columns].fillna("").astype(str).agg(
-            lambda row: " ".join(str(part) for part in row if str(part).strip()), axis=1
-        )
-    )
+    frame["text"] = frame_texts(frame)
     frame[task] = frame[task].fillna("").astype(str).str.strip().str.lower()
     return frame[frame[task].ne("")].reset_index(drop=True)
 
@@ -51,8 +47,6 @@ def evaluate(
     is_real_test = data_path is None
     if data_path is None:
         data_path = PROJECT_ROOT / "data" / "splits" / "test.csv"
-        if write_report is None:
-            write_report = True
     if model_path is None:
         model_path = PROJECT_ROOT / "models" / f"{task}_model" / f"{task}_model.joblib"
 
@@ -64,8 +58,17 @@ def evaluate(
         raise FileNotFoundError(f"Model artifact not found: {model_file}")
 
     frame = _prepare_frame(pd.read_csv(csv_path), task)
-    model = joblib.load(model_file)
+    model = load_model(model_file)
     predictions = model.predict(frame["text"].tolist())
+    novel_mask = None
+    train_path = PROJECT_ROOT / "data" / "splits" / "train.csv"
+    if is_real_test and train_path.exists():
+        params = yaml.safe_load((PROJECT_ROOT / "params.yaml").read_text(encoding="utf-8")) or {}
+        threshold = float(params.get("eval", {}).get("novelty_threshold", 0.6))
+        reference = [PROJECT_ROOT / "data" / "splits" / f"{n}.csv" for n in ("train", "val")]
+        reference_texts = [t for p in reference if p.exists() for t in frame_texts(pd.read_csv(p))]
+        novel_mask = novelty_scores(reference_texts, frame["text"].tolist()) < threshold
+    labels = sorted(set(frame[task]) | {str(p) for p in predictions})
     existing: dict[str, Any] = {}
     metrics_path = PROJECT_ROOT / "reports" / f"metrics_{task}.json"
     if metrics_path.exists():
@@ -78,8 +81,7 @@ def evaluate(
         "task": task,
         "split": "test" if is_real_test or "test" in str(csv_path) else "custom",
         "model_type": _model_type(task),
-        "macro_f1": float(f1_score(frame[task], predictions, average="macro")),
-        "accuracy": float(accuracy_score(frame[task], predictions)),
+        **classification_metrics(frame[task], predictions, labels=labels, novel_mask=novel_mask),
         "n_test": int(len(frame)),
     }
 

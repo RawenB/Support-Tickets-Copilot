@@ -1,6 +1,6 @@
 """Contract tests on the REAL cleaned splits (skipped until `dvc repro` has produced them).
 
-Real facts: 61,765 raw rows, 28,261 English, 52 raw queues, 5 priority levels.
+Real facts: 61,765 raw rows, 28,261 English (28,260 with a body), 52 raw queues, 5 priority levels.
 """
 from __future__ import annotations
 
@@ -11,6 +11,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 import yaml
+
+from copilot.data.text import frame_texts
 
 ROOT = Path(__file__).resolve().parents[1]
 SPLITS = Path(os.environ.get("SPLITS_DIR", ROOT / "data" / "splits"))
@@ -24,7 +26,9 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture(scope="module")
 def frames() -> dict[str, pd.DataFrame]:
-    return {n: pd.read_csv(SPLITS / f"{n}.csv") for n in ("train", "val", "test")}
+    return {
+        n: pd.read_csv(SPLITS / f"{n}.csv", keep_default_na=False) for n in ("train", "val", "test")
+    }
 
 
 @pytest.fixture(scope="module")
@@ -48,9 +52,11 @@ def test_only_english_and_no_missing_values(frames):
     for name, f in frames.items():
         if "language" in f:
             assert set(f["language"].str.lower()) == {"en"}, name
-        for col in ("subject", "body", "queue", "priority"):
+        # A blank subject is allowed (real tickets often have none); the body and labels are not.
+        for col in ("body", "queue", "priority"):
             assert f[col].notna().all(), f"{name}.{col} has nulls"
             assert (f[col].astype(str).str.strip() != "").all(), f"{name}.{col} has blanks"
+        assert f["subject"].notna().all(), f"{name}.subject has nulls"
 
 
 def test_priority_values_use_the_documented_scale(frames):
@@ -60,7 +66,7 @@ def test_priority_values_use_the_documented_scale(frames):
 
 def test_no_text_leaks_between_splits(frames):
     def keys(f):
-        return set((f["subject"].str.strip() + "||" + f["body"].str.strip()))
+        return set(frame_texts(f))
 
     assert not keys(frames["train"]) & keys(frames["test"]), "train/test leakage"
     assert not keys(frames["train"]) & keys(frames["val"]), "train/val leakage"
@@ -69,7 +75,7 @@ def test_no_text_leaks_between_splits(frames):
 
 def test_no_exact_duplicates_inside_a_split(frames):
     for name, f in frames.items():
-        assert not f.duplicated(["subject", "body"]).any(), name
+        assert not pd.Series(frame_texts(f)).duplicated().any(), name
 
 
 def test_rare_queues_are_merged_and_unseen_queues_do_not_exist(frames, min_queue_count):

@@ -13,6 +13,8 @@ import pandas as pd
 import yaml
 from sklearn.model_selection import train_test_split
 
+from copilot.data.text import build_text
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 RAW_PATH = PROJECT_ROOT / "data" / "raw" / "customer-support-tickets.csv"
 INTERIM_PATH = PROJECT_ROOT / "data" / "interim" / "ingested.parquet"
@@ -46,7 +48,9 @@ def _slug(value: Any) -> str:
 
 
 def _clean_text(value: Any) -> str:
-    text = str(value or "").strip().lower()
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return ""
+    text = str(value).strip().lower()
     return re.sub(r"\s+", " ", text).strip()
 
 
@@ -85,18 +89,17 @@ def clean() -> pd.DataFrame:
     frame = _read_parquet(INTERIM_PATH).copy()
     frame["language"] = frame["language"].fillna("").astype(str).str.strip().str.lower()
     frame = frame[frame["language"].eq(language)].copy()
+    frame = frame.dropna(subset=["body", "queue", "priority"]).copy()
     for column in ("subject", "body"):
         frame[column] = frame[column].map(_clean_text)
     frame["queue"] = frame["queue"].map(_slug)
     frame["priority"] = frame["priority"].map(_normalize_priority)
-    frame["text"] = (
-        frame["subject"].fillna("").astype(str).str.strip()
-        + " "
-        + frame["body"].fillna("").astype(str).str.strip()
-    ).str.replace(r"\s+", " ", regex=True).str.strip()
+    frame["text"] = [
+        build_text(subject, body) for subject, body in zip(frame["subject"], frame["body"])
+    ]
+    # A blank subject is normal for real tickets, so only the body and labels are required.
     frame = frame[
-        frame["subject"].ne("")
-        & frame["body"].ne("")
+        frame["body"].ne("")
         & frame["queue"].ne("")
         & frame["priority"].ne("")
     ].copy()
@@ -105,9 +108,9 @@ def clean() -> pd.DataFrame:
 
 
 def dedupe() -> pd.DataFrame:
-    """Remove exact duplicate ticket text before splitting."""
+    """Remove exact duplicates of the normalised model text before splitting."""
     frame = _read_parquet(CLEANED_PATH).copy()
-    frame = frame.drop_duplicates(subset=["subject", "body"], keep="first")
+    frame = frame.drop_duplicates(subset=["text"], keep="first")
     frame = frame.reset_index(drop=True)
     _write_parquet(frame, DEDUPED_PATH)
     return frame
@@ -132,7 +135,7 @@ def _split_groups(
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Split whole text groups so duplicate sequences cannot leak across splits."""
     work = frame.copy()
-    work["_group"] = work["subject"].astype(str) + "||" + work["body"].astype(str)
+    work["_group"] = work["text"].astype(str)
     groups = (
         work.groupby("_group", sort=False)["queue"]
         .agg(lambda values: values.mode().iat[0] if not values.mode().empty else "Other")
@@ -253,8 +256,8 @@ def split() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
             "normalize subject/body whitespace",
             "normalize queue names",
             "normalize priority labels",
-            "drop null or blank required fields",
-            "deduplicate exact subject/body pairs",
+            "drop rows with a blank body or label (a blank subject is allowed)",
+            "deduplicate exact normalised ticket text",
             f"merge queues with fewer than {min_queue_count} train rows into Other",
             "stratified group-aware 70/15/15 split",
         ],

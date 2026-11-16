@@ -106,7 +106,9 @@ def test_baseline_and_audit_exercise_real_pipeline_behavior(tmp_path: Path) -> N
             "language": ["en", "en", "en", "en"],
         }
     )
-    baseline_result = baseline(df, task="queue")
+    baseline_result = baseline(
+        df, task="queue", model_path=tmp_path / "baseline" / "queue_baseline_model.joblib"
+    )
     assert baseline_result["task"] == "queue"
     assert baseline_result["macro_f1"] >= 0.5
 

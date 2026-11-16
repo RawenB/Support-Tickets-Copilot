@@ -11,9 +11,10 @@ import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 FAQ_DIR = PROJECT_ROOT / "data" / "faq"
-META_PATH = FAQ_DIR / "index_meta.json"
-INDEX_PATH = FAQ_DIR / "index.faiss"
-NUMPY_INDEX_PATH = FAQ_DIR / "index.npy"
+INDEX_DIR = PROJECT_ROOT / "data" / "faq_index"
+META_PATH = INDEX_DIR / "index_meta.json"
+INDEX_PATH = INDEX_DIR / "index.faiss"
+NUMPY_INDEX_PATH = INDEX_DIR / "index.npy"
 
 
 def _query_text(ticket: dict[str, Any] | str | None) -> str:

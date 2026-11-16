@@ -9,8 +9,8 @@ stages:
       size: 53316994
     - path: src/copilot/data/pipeline.py
       hash: md5
-      md5: f1c595f243b2059d2998311d18ccbf18
-      size: 10025
+      md5: 1fe0bbc622c9fd3780ba17dd977aade8
+      size: 10196
     outs:
     - path: data/interim/ingested.parquet
       hash: md5
@@ -25,43 +25,47 @@ stages:
       size: 24624368
     - path: src/copilot/data/pipeline.py
       hash: md5
-      md5: f1c595f243b2059d2998311d18ccbf18
-      size: 10025
+      md5: 1fe0bbc622c9fd3780ba17dd977aade8
+      size: 10196
+    - path: src/copilot/data/text.py
+      hash: md5
+      md5: 696593b8a18d4af1231bb301b4175702
+      size: 1420
     params:
       params.yaml:
         language: en
     outs:
     - path: data/processed/cleaned.parquet
       hash: md5
-      md5: 6a289735d54ea7365078b1777d44392b
-      size: 13126653
+      md5: 6b89df4c680e115cb7675d6fabd92528
+      size: 15072398
   dedupe:
     cmd: python -m copilot.data.pipeline dedupe
     deps:
     - path: data/processed/cleaned.parquet
       hash: md5
-      md5: 6a289735d54ea7365078b1777d44392b
-      size: 13126653
+      md5: 6b89df4c680e115cb7675d6fabd92528
+      size: 15072398
     - path: src/copilot/data/pipeline.py
       hash: md5
-      md5: f1c595f243b2059d2998311d18ccbf18
-      size: 10025
+      md5: 1fe0bbc622c9fd3780ba17dd977aade8
+      size: 10196
     outs:
     - path: data/processed/deduped.parquet
       hash: md5
-      md5: 4747af042cf689e55b6e606631ffb5fd
-      size: 11294788
+      md5: 16613b3024bf1c6d7d1eec3c42c1e69b
+      size: 12824192
   split:
     cmd: python -m copilot.data.pipeline split
     deps:
     - path: data/processed/deduped.parquet
       hash: md5
-      md5: 4747af042cf689e55b6e606631ffb5fd
-      size: 11294788
+      md5: 16613b3024bf1c6d7d1eec3c42c1e69b
+      size: 12824192
     - path: src/copilot/data/pipeline.py
       hash: md5
-      md5: f1c595f243b2059d2998311d18ccbf18
-      size: 10025
+      md5: 1fe0bbc622c9fd3780ba17dd977aade8
+      size: 10196
     params:
       params.yaml:
         min_queue_count: 5
@@ -73,17 +77,45 @@ stages:
     outs:
     - path: data/splits/test.csv
       hash: md5
-      md5: 1f0dc557204f4e7e1a92961117528fce
-      size: 4096651
+      md5: 6135b58970129cbf3f029eb81508309e
+      size: 4677171
     - path: data/splits/train.csv
       hash: md5
-      md5: bbc2dada0610596b6d4d7b50b1e230b3
-      size: 18940389
+      md5: bc6065532d858c526a8a36f40b0a1d0b
+      size: 21622339
     - path: data/splits/val.csv
       hash: md5
-      md5: be4b2c299d9205718d7cee84304cf953
-      size: 4087191
+      md5: 35d98beaca7003f096b5370f32f1ab89
+      size: 4586658
     - path: reports/data_audit.json
       hash: md5
-      md5: 969779cbb8e24dafd712c3a432eac752
-      size: 1015
+      md5: 8b2939278a1884cc6c3a46ad264dd2ae
+      size: 1050
+  validate:
+    cmd: python -m copilot.data.validate
+    deps:
+    - path: data/splits/test.csv
+      hash: md5
+      md5: 6135b58970129cbf3f029eb81508309e
+      size: 4677171
+    - path: data/splits/train.csv
+      hash: md5
+      md5: bc6065532d858c526a8a36f40b0a1d0b
+      size: 21622339
+    - path: data/splits/val.csv
+      hash: md5
+      md5: 35d98beaca7003f096b5370f32f1ab89
+      size: 4586658
+    - path: src/copilot/data/validate.py
+      hash: md5
+      md5: 2085b667aae0370fba34f16c90978f6a
+      size: 4548
+    params:
+      params.yaml:
+        language: en
+        min_queue_count: 5
+    outs:
+    - path: reports/data_validation.json
+      hash: md5
+      md5: 55eebf1fac4f2e050102b844364bc659
+      size: 2961

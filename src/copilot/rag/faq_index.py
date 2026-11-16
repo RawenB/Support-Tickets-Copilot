@@ -9,8 +9,11 @@ from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 FAQ_DIR = PROJECT_ROOT / "data" / "faq"
-INDEX_PATH = FAQ_DIR / "index.faiss"
-META_PATH = FAQ_DIR / "index_meta.json"
+# Built artifacts live outside the FAQ source folder so DVC can track the folder as an
+# input and the index as an output without overlap.
+INDEX_DIR = PROJECT_ROOT / "data" / "faq_index"
+INDEX_PATH = INDEX_DIR / "index.faiss"
+META_PATH = INDEX_DIR / "index_meta.json"
 EMBEDDER = "all-MiniLM-L6-v2"
 FAQ_PATTERN = re.compile(r"^#\s*(FAQ-\d+)\s*:\s*(.+)$")
 
@@ -61,6 +64,7 @@ def build_faq_index() -> dict[str, Any]:
         normalize_embeddings=True,
         show_progress_bar=False,
     )
+    INDEX_DIR.mkdir(parents=True, exist_ok=True)
     try:
         import faiss
 
@@ -71,7 +75,7 @@ def build_faq_index() -> dict[str, Any]:
     except Exception:
         import numpy as np
 
-        np.save(FAQ_DIR / "index.npy", embeddings.astype("float32"))
+        np.save(INDEX_DIR / "index.npy", embeddings.astype("float32"))
         backend = "numpy"
     META_PATH.write_text(
         json.dumps(

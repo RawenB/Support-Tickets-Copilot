@@ -43,8 +43,15 @@ def test_champion_meets_the_gate(task):
     assert _metrics(task)["macro_f1"] >= PARAMS["f1_gate"], "champion below the F1 gate"
 
 
+def _require_champion() -> None:
+    if not (ROOT / "models" / "queue_model" / "queue_model.joblib").exists():
+        pytest.skip("champion artifacts not present: run `dvc pull` or `dvc repro`")
+
+
 def test_predict_returns_label_and_confidence():
     from copilot.models.predict import predict
+
+    _require_champion()
 
     out = predict("API calls are timing out for several users", task="queue")
     assert isinstance(out["label"], str) and out["label"]
@@ -56,6 +63,8 @@ def test_predict_returns_label_and_confidence():
 def test_predict_is_deterministic():
     from copilot.models.predict import predict
 
+    _require_champion()
+
     text = "Please reset my password, I cannot log in"
     assert predict(text, task="queue") == predict(text, task="queue")
 
@@ -65,6 +74,8 @@ def test_mlflow_has_runs_and_a_champion_alias():
     uri = PARAMS.get("mlflow", {}).get("tracking_uri")
     if not uri:
         pytest.skip("params.yaml has no mlflow.tracking_uri yet")
+    if uri.startswith("sqlite:///") and not (ROOT / uri[len("sqlite:///"):]).exists():
+        pytest.skip("local MLflow store not present (CI checkout)")
     mlflow.set_tracking_uri(uri)
     client = mlflow.MlflowClient()
     for task in TASKS:
@@ -72,7 +83,7 @@ def test_mlflow_has_runs_and_a_champion_alias():
         assert experiment is not None, f"no MLflow experiment for {task}"
         runs = client.search_runs([experiment.experiment_id])
         assert len(runs) >= 3, f"{task}: need >= 3 tracked runs (baseline + DistilBERT variants)"
-        types = {r.data.params.get("model_type") for r in runs}
+        types = {r.data.params.get("model_type") or r.data.tags.get("candidate") for r in runs} - {None}
         assert len(types) >= 2, f"{task}: compare at least two model types, got {types}"
         champion = client.get_model_version_by_alias(f"support-copilot-{task}", "champion")
         assert champion is not None
