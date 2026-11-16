@@ -2,25 +2,70 @@
   "queue": {
     "task": "queue",
     "split": "test",
-    "model_type": "tfidf_sgd_log",
-    "model_path": "/Users/rawen/Documents/4ING/tickets copilot/models/queue_model/queue_model.joblib",
-    "macro_f1": 0.7111971076095891,
-    "accuracy": 0.7109623964308477,
-    "n_test": 3138,
-    "val_macro_f1": 0.6974751289221249,
-    "val_accuracy": 0.6851497769279796,
-    "mlflow_run_id": "2871fa911b5b41b385d16cc8b0a0db8b"
+    "model_type": "ensemble",
+    "model_path": "models/queue_model/queue_model.joblib",
+    "macro_f1": 0.8233510503492523,
+    "weighted_f1": 0.8257832191139846,
+    "accuracy": 0.8259404828747895,
+    "novel_macro_f1": 0.46853830757448006,
+    "novel_accuracy": 0.5198915009041591,
+    "novel_share": 0.31049971925884334,
+    "seen_macro_f1": 0.9593992944827511,
+    "n_test": 3562,
+    "val_macro_f1": 0.780722117303216,
+    "val_weighted_f1": 0.7756728847689681,
+    "val_accuracy": 0.7759685569904547,
+    "novelty_threshold": 0.6,
+    "blend_weights": {
+      "tfidf_sgd": 0.4,
+      "knn_char": 0.3,
+      "knn_word": 0.1,
+      "knn_embedding": 0.2
+    },
+    "candidates_val_macro_f1": {
+      "tfidf_sgd": 0.7041923375009324,
+      "knn_char": 0.7515583907085162,
+      "knn_word": 0.7470737566108939,
+      "knn_embedding": 0.703457318482591,
+      "ensemble": 0.780722117303216
+    },
+    "data_fingerprint": "d1c2d666a54e",
+    "git_commit": "fea835b87e48f6e975cdf77056aba24987d67dd1",
+    "mlflow_run_id": "0525a2f73ad74dcd85b63212b02fa257",
+    "registry_version": "7"
   },
   "priority": {
     "task": "priority",
     "split": "test",
-    "model_type": "tfidf_ensemble",
-    "model_path": "/Users/rawen/Documents/4ING/tickets copilot/models/priority_model/priority_model.joblib",
-    "macro_f1": 0.7336442507358553,
-    "accuracy": 0.7469725940089229,
-    "n_test": 3138,
-    "val_macro_f1": 0.7117970471926321,
-    "val_accuracy": 0.7256214149139579,
-    "mlflow_run_id": "9955cea65e6b4d16949c76ff4b7069ad"
+    "model_type": "ensemble",
+    "model_path": "models/priority_model/priority_model.joblib",
+    "macro_f1": 0.8465437716630001,
+    "weighted_f1": 0.8500031623431248,
+    "accuracy": 0.8503649635036497,
+    "novel_macro_f1": 0.5535276968108317,
+    "novel_accuracy": 0.5777576853526221,
+    "novel_share": 0.31049971925884334,
+    "seen_macro_f1": 0.971471632068643,
+    "n_test": 3562,
+    "val_macro_f1": 0.809990694036994,
+    "val_weighted_f1": 0.8171875371472659,
+    "val_accuracy": 0.817798989331836,
+    "novelty_threshold": 0.6,
+    "blend_weights": {
+      "knn_char": 0.3,
+      "knn_word": 0.4,
+      "knn_embedding": 0.3
+    },
+    "candidates_val_macro_f1": {
+      "tfidf_sgd": 0.7257341457507782,
+      "knn_char": 0.796157310357025,
+      "knn_word": 0.7904663092022908,
+      "knn_embedding": 0.7592485894011878,
+      "ensemble": 0.809990694036994
+    },
+    "data_fingerprint": "d1c2d666a54e",
+    "git_commit": "fea835b87e48f6e975cdf77056aba24987d67dd1",
+    "mlflow_run_id": "b8fa867a83aa4d329b24dab7413622b6",
+    "registry_version": "7"
   }
 }

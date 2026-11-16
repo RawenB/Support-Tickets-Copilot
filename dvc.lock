@@ -119,3 +119,307 @@ stages:
       hash: md5
       md5: 55eebf1fac4f2e050102b844364bc659
       size: 2961
+  train@queue:
+    cmd: python -m copilot.models.train --task queue
+    deps:
+    - path: data/splits/test.csv
+      hash: md5
+      md5: 6135b58970129cbf3f029eb81508309e
+      size: 4677171
+    - path: data/splits/train.csv
+      hash: md5
+      md5: bc6065532d858c526a8a36f40b0a1d0b
+      size: 21622339
+    - path: data/splits/val.csv
+      hash: md5
+      md5: 35d98beaca7003f096b5370f32f1ab89
+      size: 4586658
+    - path: reports/data_validation.json
+      hash: md5
+      md5: 55eebf1fac4f2e050102b844364bc659
+      size: 2961
+    - path: src/copilot/data/text.py
+      hash: md5
+      md5: 696593b8a18d4af1231bb301b4175702
+      size: 1420
+    - path: src/copilot/models/blend.py
+      hash: md5
+      md5: 18e0f6871d234cb0f9f016e06a59690b
+      size: 4090
+    - path: src/copilot/models/knn.py
+      hash: md5
+      md5: aa6a746aeec8b083855a51618f74d0e4
+      size: 4817
+    - path: src/copilot/models/metrics.py
+      hash: md5
+      md5: 52462f29c9e8b0dfe861c7a4363ed946
+      size: 4125
+    - path: src/copilot/models/train.py
+      hash: md5
+      md5: 6dc3bd0e324eec77a8a0e9b3a4b33f68
+      size: 19727
+    - path: src/copilot/models/transformer.py
+      hash: md5
+      md5: 499667ca1eb2ba7a0718104bff12004b
+      size: 11589
+    params:
+      params.yaml:
+        eval:
+          novelty_threshold: 0.6
+        seed: 42
+      configs/train_queue.yaml:
+        train:
+          task: queue
+          output_dir: models/queue_model
+          candidates:
+          - tfidf_sgd
+          - knn_char
+          - knn_word
+          - knn_embedding
+          - ensemble
+          refit_memory_on_train_val: true
+          tfidf:
+            ngram_max: 3
+            min_df: 1
+            max_features: 500000
+            alpha: 1e-06
+          knn:
+            char:
+              k: 15
+              power: 10
+            word:
+              k: 15
+              power: 4
+            embedding:
+              k: 5
+              power: 10
+              embedder: all-MiniLM-L6-v2
+          ensemble:
+            members:
+            - tfidf_sgd
+            - knn_char
+            - knn_word
+            - knn_embedding
+            grid_step: 0.1
+          transformer:
+            model_name: roberta-base
+            epochs: 4
+            batch_size: 16
+            learning_rate: 3e-05
+            weight_decay: 0.01
+            warmup_ratio: 0.06
+            max_length: 256
+            label_smoothing: 0.05
+            class_weight_power: 0.0
+            patience: 2
+    outs:
+    - path: models/queue_model
+      hash: md5
+      md5: ebea4e2d04cc0ac32fbe7612e9b39992.dir
+      size: 279788462
+      nfiles: 3
+    - path: reports/metrics_queue.json
+      hash: md5
+      md5: 9995d9f556525f1ef0e6c1b0cd2086fc
+      size: 1064
+    - path: reports/per_class_queue.json
+      hash: md5
+      md5: 717482db14ca2295aed694a1ae961baf
+      size: 1869
+    - path: reports/plots/confusion_queue.json
+      hash: md5
+      md5: 46253ccb01f1d312eba8236940686598
+      size: 236426
+    - path: reports/plots/training_curve_queue.json
+      hash: md5
+      md5: d751713988987e9331980363e24189ce
+      size: 2
+  train@priority:
+    cmd: python -m copilot.models.train --task priority
+    deps:
+    - path: data/splits/test.csv
+      hash: md5
+      md5: 6135b58970129cbf3f029eb81508309e
+      size: 4677171
+    - path: data/splits/train.csv
+      hash: md5
+      md5: bc6065532d858c526a8a36f40b0a1d0b
+      size: 21622339
+    - path: data/splits/val.csv
+      hash: md5
+      md5: 35d98beaca7003f096b5370f32f1ab89
+      size: 4586658
+    - path: reports/data_validation.json
+      hash: md5
+      md5: 55eebf1fac4f2e050102b844364bc659
+      size: 2961
+    - path: src/copilot/data/text.py
+      hash: md5
+      md5: 696593b8a18d4af1231bb301b4175702
+      size: 1420
+    - path: src/copilot/models/blend.py
+      hash: md5
+      md5: 18e0f6871d234cb0f9f016e06a59690b
+      size: 4090
+    - path: src/copilot/models/knn.py
+      hash: md5
+      md5: aa6a746aeec8b083855a51618f74d0e4
+      size: 4817
+    - path: src/copilot/models/metrics.py
+      hash: md5
+      md5: 52462f29c9e8b0dfe861c7a4363ed946
+      size: 4125
+    - path: src/copilot/models/train.py
+      hash: md5
+      md5: 6dc3bd0e324eec77a8a0e9b3a4b33f68
+      size: 19727
+    - path: src/copilot/models/transformer.py
+      hash: md5
+      md5: 499667ca1eb2ba7a0718104bff12004b
+      size: 11589
+    params:
+      params.yaml:
+        eval:
+          novelty_threshold: 0.6
+        seed: 42
+      configs/train_priority.yaml:
+        train:
+          task: priority
+          output_dir: models/priority_model
+          candidates:
+          - tfidf_sgd
+          - knn_char
+          - knn_word
+          - knn_embedding
+          - ensemble
+          refit_memory_on_train_val: true
+          tfidf:
+            ngram_max: 3
+            min_df: 1
+            max_features: 500000
+            alpha: 1e-06
+          knn:
+            char:
+              k: 15
+              power: 10
+            word:
+              k: 15
+              power: 4
+            embedding:
+              k: 5
+              power: 10
+              embedder: all-MiniLM-L6-v2
+          ensemble:
+            members:
+            - tfidf_sgd
+            - knn_char
+            - knn_word
+            - knn_embedding
+            grid_step: 0.1
+          transformer:
+            model_name: roberta-base
+            epochs: 4
+            batch_size: 16
+            learning_rate: 3e-05
+            weight_decay: 0.01
+            warmup_ratio: 0.06
+            max_length: 256
+            label_smoothing: 0.05
+            class_weight_power: 0.0
+            patience: 2
+    outs:
+    - path: models/priority_model
+      hash: md5
+      md5: 8dbd58d2e68d68074be3be66f50810c6.dir
+      size: 221413325
+      nfiles: 3
+    - path: reports/metrics_priority.json
+      hash: md5
+      md5: e7089ab983c098ad58ea5e783c6c6bfb
+      size: 1048
+    - path: reports/per_class_priority.json
+      hash: md5
+      md5: 2aff5bbf56fe0821d0835426633b8c73
+      size: 778
+    - path: reports/plots/confusion_priority.json
+      hash: md5
+      md5: 88847ca1bfc5ae1bcf6db430b8678985
+      size: 150681
+    - path: reports/plots/training_curve_priority.json
+      hash: md5
+      md5: d751713988987e9331980363e24189ce
+      size: 2
+  evaluate:
+    cmd: python -m copilot.models.evaluate
+    deps:
+    - path: data/splits/test.csv
+      hash: md5
+      md5: 6135b58970129cbf3f029eb81508309e
+      size: 4677171
+    - path: models/priority_model
+      hash: md5
+      md5: 8dbd58d2e68d68074be3be66f50810c6.dir
+      size: 221413325
+      nfiles: 3
+    - path: models/queue_model
+      hash: md5
+      md5: ebea4e2d04cc0ac32fbe7612e9b39992.dir
+      size: 279788462
+      nfiles: 3
+    - path: src/copilot/models/evaluate.py
+      hash: md5
+      md5: bacfde8c399590a0cd91e4cfb87a88fc
+      size: 4283
+    params:
+      params.yaml:
+        eval:
+          novelty_threshold: 0.6
+        f1_gate: 0.7
+    outs:
+    - path: reports/metrics_summary.json
+      hash: md5
+      md5: 915b65a4dee87996dd285cefbabfdacd
+      size: 2277
+  build_faq_index:
+    cmd: python -m copilot.rag.faq_index
+    deps:
+    - path: data/faq
+      hash: md5
+      md5: b82c7de8b8cd98e886aea3ac2feac996.dir
+      size: 7498
+      nfiles: 26
+    - path: src/copilot/rag/faq_index.py
+      hash: md5
+      md5: 657d38e28b75986e2823e8f360771608
+      size: 3203
+    outs:
+    - path: data/faq_index
+      hash: md5
+      md5: 5dbc6dda50ca3d385f5ab80cb14f38db.dir
+      size: 48672
+      nfiles: 2
+  rag_eval:
+    cmd: python -m copilot.rag.evaluate
+    deps:
+    - path: data/faq_index
+      hash: md5
+      md5: 5dbc6dda50ca3d385f5ab80cb14f38db.dir
+      size: 48672
+      nfiles: 2
+    - path: data/splits/test.csv
+      hash: md5
+      md5: 6135b58970129cbf3f029eb81508309e
+      size: 4677171
+    - path: src/copilot/rag
+      hash: md5
+      md5: c58334662fb0e8b383c41cbefbbe0979.dir
+      size: 22973
+      nfiles: 6
+    params:
+      params.yaml:
+        seed: 42
+    outs:
+    - path: reports/rag_eval.json
+      hash: md5
+      md5: f2ef7c15b0c5b5476e31cb27cde60d1a
+      size: 11228

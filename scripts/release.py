@@ -25,6 +25,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+RELEASE_STAGES = ("validate", "train@queue", "train@priority", "evaluate", "rag_eval")
 
 
 def sh(*args: str, check: bool = True) -> str:
@@ -66,7 +67,10 @@ def main() -> int:
     if not args.allow_dirty:
         if sh("git", "status", "--porcelain", "--untracked-files=no"):
             raise SystemExit("work tree has uncommitted changes: commit first")
-        status = sh("dvc", "status", "--quiet", check=False)
+        # Only the stages that produce what we tag must be up to date (the incident-stream
+        # replay writes into the app database and is run separately).
+        status = sh("dvc", "status", "--with-deps", *RELEASE_STAGES, check=False)
+        status = "" if "are up to date" in status else status
         if status:
             raise SystemExit(f"`dvc status` is not clean, run `dvc repro` and commit dvc.lock first:\n{status}")
 

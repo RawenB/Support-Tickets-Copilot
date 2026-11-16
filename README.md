@@ -12,16 +12,23 @@ Support Copilot is an internal support workspace for queue routing, priority tri
 
 ```bash
 source .venv/bin/activate
-make data          # ingest, clean, dedupe, split
-make rag           # build the FAQ index and evaluate retrieval
-make train         # train queue and priority champions on the real splits
-make evaluate      # write real test metrics
-make stream        # replay the test split into SQLite
-make drift         # write reports/drift_report.json
+dvc pull           # data + model artifacts from the DVC remote
+dvc repro          # ingest -> clean -> dedupe -> split -> validate -> train -> evaluate (+ RAG)
+make gate          # quality gates on reports/metrics_*.json
 make app           # launch Streamlit on http://localhost:8501
 ```
 
-Training requires real model artifacts. If a model artifact is unavailable, the stream stores predictions as `unclassified` or `very_low` with zero confidence instead of inventing labels.
+| Model (test, data-v2) | macro F1 | novel-ticket macro F1 |
+|---|---|---|
+| queue (`model-queue-v7`) | 0.823 (v0.1.0: 0.711) | 0.469 |
+| priority (`model-priority-v7`) | 0.847 (v0.1.0: 0.734) | 0.554 |
+
+See `docs/MODEL_CARDS.md` for the models and `docs/MLOPS.md` for the full workflow:
+experiments (`make metrics/params/plots`), MLflow tracking, champion/challenger promotion
+(`make promote|rollback TASK=queue`), and release tags (`make release VERSION=x.y.z`).
+
+If a model artifact is unavailable, the stream stores predictions as `unclassified` or
+`very_low` with zero confidence instead of inventing labels.
 
 ## Useful commands
 
@@ -30,7 +37,6 @@ make lint
 make test
 make mlflow-ui
 make retrain TASK=queue
-make promote TASK=queue
 ```
 
 `make demo` starts the UI with `COPILOT_DEMO_MODE=1`, which only adds an explicit demo label. It does not invent tickets or fall back to demo records.

@@ -1,0 +1,33 @@
+{
+  "task": "queue",
+  "model_name": "support-copilot-queue",
+  "decided_at": "2026-11-16T09:58:14+00:00",
+  "promoted": true,
+  "forced": false,
+  "reasons": [],
+  "alias": "champion",
+  "version": "7",
+  "run_id": "0525a2f73ad74dcd85b63212b02fa257",
+  "macro_f1": 0.8233510503492523,
+  "novel_macro_f1": 0.46853830757448006,
+  "gate": 0.7,
+  "novel_gate": 0.4,
+  "max_regression": 0.005,
+  "challenger": {
+    "version": "7",
+    "run_id": "0525a2f73ad74dcd85b63212b02fa257",
+    "macro_f1": 0.8233510503492523,
+    "novel_macro_f1": 0.46853830757448006,
+    "data_fingerprint": "d1c2d666a54e",
+    "model_type": "ensemble"
+  },
+  "incumbent": {
+    "version": "5",
+    "run_id": "2871fa911b5b41b385d16cc8b0a0db8b",
+    "macro_f1": 0.7111971076095891,
+    "novel_macro_f1": null,
+    "data_fingerprint": null,
+    "model_type": "tfidf_sgd_log"
+  },
+  "same_test_data_as_incumbent": false
+}

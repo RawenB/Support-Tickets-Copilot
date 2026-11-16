@@ -1,12 +1,35 @@
 {
   "task": "queue",
   "split": "test",
-  "model_type": "tfidf_sgd_log",
-  "model_path": "/Users/rawen/Documents/4ING/tickets copilot/models/queue_model/queue_model.joblib",
-  "macro_f1": 0.7111971076095891,
-  "accuracy": 0.7109623964308477,
-  "n_test": 3138,
-  "val_macro_f1": 0.6974751289221249,
-  "val_accuracy": 0.6851497769279796,
-  "mlflow_run_id": "2871fa911b5b41b385d16cc8b0a0db8b"
+  "model_type": "ensemble",
+  "model_path": "models/queue_model/queue_model.joblib",
+  "macro_f1": 0.8233510503492523,
+  "weighted_f1": 0.8257832191139846,
+  "accuracy": 0.8259404828747895,
+  "novel_macro_f1": 0.46853830757448006,
+  "novel_accuracy": 0.5198915009041591,
+  "novel_share": 0.31049971925884334,
+  "seen_macro_f1": 0.9593992944827511,
+  "n_test": 3562,
+  "val_macro_f1": 0.780722117303216,
+  "val_weighted_f1": 0.7756728847689681,
+  "val_accuracy": 0.7759685569904547,
+  "novelty_threshold": 0.6,
+  "blend_weights": {
+    "tfidf_sgd": 0.4,
+    "knn_char": 0.3,
+    "knn_word": 0.1,
+    "knn_embedding": 0.2
+  },
+  "candidates_val_macro_f1": {
+    "tfidf_sgd": 0.7041923375009324,
+    "knn_char": 0.7515583907085162,
+    "knn_word": 0.7470737566108939,
+    "knn_embedding": 0.703457318482591,
+    "ensemble": 0.780722117303216
+  },
+  "data_fingerprint": "d1c2d666a54e",
+  "git_commit": "fea835b87e48f6e975cdf77056aba24987d67dd1",
+  "mlflow_run_id": "0525a2f73ad74dcd85b63212b02fa257",
+  "registry_version": "7"
 }

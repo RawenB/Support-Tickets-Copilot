@@ -127,7 +127,8 @@ stages:
       - params.yaml:
           - seed
     metrics:
-      - reports/rag_eval.json
+      - reports/rag_eval.json:
+          cache: false
 
   simulate_stream:
     cmd: python -m copilot.incidents.simulate_stream
@@ -136,7 +137,8 @@ stages:
     outs:
       - data/interim/incident_stream.csv
     metrics:
-      - reports/incident_stream_metrics.json
+      - reports/incident_stream_metrics.json:
+          cache: false
 
   incident_eval:
     cmd: python -m copilot.incidents.detector
@@ -146,4 +148,5 @@ stages:
       - params.yaml:
           - incident
     metrics:
-      - reports/incident_metrics.json
+      - reports/incident_metrics.json:
+          cache: false
